@@ -1,0 +1,238 @@
+# Quiz Qrusher v3.0 — Build Plan
+
+Condensed from the planning chat on 2026-10-14. Decisions below are **settled**; don't re-ask them. Items under "Open items" and "Interpretations to confirm" still need the user.
+
+Baseline: `versions/quiz_qrusher_v2.3.3.html` (CSV load → scrollable quiz → results/report/follow-up .md; flags, notes dock, .txt resume code).
+
+---
+
+## 1. What v3.0 is
+
+| Piece | Summary |
+|---|---|
+| **Full app** (`index.html`, GitHub Pages) | Home screen with tiles, library of past quizzes in browser storage, autosave, optional saves folder (Chrome/Edge), tutor mode, timer, settings, Help, Feedback, Prompt Builder, PWA. |
+| **Lite** (`lite.html`) | v2.3.3 flow + v3 UI polish + settings + autosave. Downloadable single file ("Download for offline use"), and also served on the site for unsupported browsers. |
+| **Prompts** | Medical pipeline prompts downloadable from Home; Prompt Builder generates prompts for any subject. |
+
+---
+
+## 2. Settled decisions
+
+### Home screen (full app)
+- Top tabs: **Home · Prompt Builder · Help · Settings · Feedback**.
+- Home tiles: **[Start new quiz] [Resume previous quiz] [Review previous quiz] [Import previous quiz]**.
+- Footer links: **Download prompts** (zip of `prompts/medical/`), **Download for offline use** (Lite with current settings baked in), version and "What's new".
+- Help is also reachable from the quiz screen (from the old todo).
+
+### Library and storage
+- Model: **Question bank** (one CSV; name defaults to the file name; rename and delete allowed) → **Attempts** (`in_progress` | `submitted`).
+  Resume lists in-progress attempts; Review lists submitted ones.
+- Browser storage: IndexedDB for banks and attempts, localStorage for settings and small flags. Call `navigator.storage.persist()`. Namespace every key with `quizQrusher:` because all of the user's GitHub Pages projects share one origin.
+- **Autosave on every change**, in both the full app and Lite. The old manual "Save progress to file" becomes **Export backup**.
+- Safari deletes site storage after about 7 days of no visits. Mitigations: Export backup, the PWA install, and a note in Help.
+
+### Save format (v3, shared by full and Lite)
+One self-contained JSON file per attempt; the CSV is embedded so no separate file is needed:
+```json
+{ "format": "quiz-qrusher-save", "version": 3, "app": "3.0",
+  "bank":    { "id": "", "name": "", "fileName": "", "csvText": "", "csvHash": 0, "questionCount": 0 },
+  "attempt": { "id": "", "createdAt": 0, "updatedAt": 0, "status": "in_progress|submitted",
+               "mode": "test|tutor", "questionOrder": [], "optionOrder": [], "answers": [], "flags": [],
+               "revealed": [], "notes": "", "elapsedMs": 0, "results": null } }
+```
+- Question IDs = `hashStr(category|text|correct)`, the same as v2.3.3.
+- **Import** accepts: a v3 `.json`; a v2 `.txt` resume code (then ask for its CSV and match `csvHash`); a bare CSV (creates a new bank).
+- Test fixtures for v2 import: `test-data/saves_v2/*.txt` with `test-data/csv/qus_input_25.csv`.
+
+### Saves folder (File System Access API; Chrome/Edge desktop only)
+- Detect support with `'showDirectoryPicker' in window`, never by user-agent. User-agent is only used for wording.
+- Setting: "Link a saves folder". Store the directory handle in IndexedDB. On later visits use `queryPermission`. If the result is `prompt`, show a one-click **Reconnect** (needs a user click; Chrome 122+ offers "Allow on every visit").
+- Write order: browser storage instantly on every change, then the attempt's `.json` to the folder about 1 second later.
+- Status line in the quiz header: "✓ Saved to folder · just now" or "⚠ Saved in browser only — Reconnect".
+- On open, compare folder and browser copies and keep the newer one per attempt (`updatedAt`).
+- Handle: a missing or renamed folder (fall back to browser storage plus a banner), the same attempt open in two tabs (BroadcastChannel or Web Locks), and `.crswap` temp files inside iCloud/OneDrive folders. Help should suggest a dedicated folder set to "Always keep on this device".
+- Firefox and Safari can't link a folder; they use browser storage plus export/import.
+
+### Unsupported-browser dialog (full app and Lite)
+- Shown when the app opens and `showDirectoryPicker` is missing:
+  "This app works best on Chrome or Edge for settings and progress saving."
+  Buttons: **[Use Lite version] [Use full version]**, plus a **☐ Don't show again** checkbox.
+- The checkbox is stored in browser storage, so on Safari it may come back after the 7-day storage wipe. That's acceptable; mention it in Help.
+- Full app → "Use Lite version" opens the hosted `lite.html`. Downloaded Lite → "Use full version" opens the hosted site.
+- Settings → Data has a "Show the browser notice again" option.
+
+### Lite specifics
+- Contents: v2.3.3 flow + v3 visual updates + settings + autosave + the v3 save format. **No** home library, tutor mode, timer, Prompt Builder, PWA or analytics, unless trivially shared.
+- **Settings are baked into the HTML** inside a marked block, e.g. `<script id="qq-settings" type="application/json">`.
+  - Settings changes **preview live**. **[Apply]** writes a new Lite HTML containing the new settings block.
+  - If the linked saves folder is Lite's own folder (Chrome/Edge), Apply overwrites Lite in place and reloads.
+  - Otherwise it downloads the new file under the same fixed name, with the message: "Delete the old Lite file and put this one in its place, then reopen it and relink your saves folder (Chrome/Edge)."
+  - Build the regenerated file from a **snapshot of the page source taken at startup**, never from the live DOM. That keeps extension-injected markup and quiz state out.
+- When Lite is served from the site (https) instead of opened from disk, settings live in browser storage and Apply just saves.
+- Saving: Chrome/Edge can link a folder. Other browsers have **no saves folder**: they autosave to browser storage and download v3 `.json` save files.
+  - This is a trial: "we'll try the download JSON and see if it's functional". Collect feedback after release.
+  - Setting **"Prompt me to download a save file"** fires **at the end of the quiz (on Submit)**.
+  - It can also fire **on an interval timer**: off / every 5 / 10 / 15 / 30 min, chosen in Settings.
+- Recommended Lite folder layout: `Quiz Qrusher Lite/quiz_qrusher_v3.0_lite.html` + `saves/`.
+- The full app's "Download for offline use" uses the same mechanism: fetch `lite.html`, swap in the current settings, download.
+
+### Quiz features in 3.0
+| ID | Feature | Status |
+|---|---|---|
+| a | Retake only **missed** / **flagged** / **missed + flagged** (from Results and Review) | ✅ in |
+| b | PWA: `manifest.webmanifest` + `sw.js` + icons; offline cache; "New version available — reload" toast | ✅ in |
+| c | **Tutor/Test mode toggle in the side dock next to Notes**; per-question **Show answer** button (can be turned off in Settings). Scoring rules are below the table. | ✅ in |
+| d | `Explanation` CSV column | ⏸ deferred |
+| e | Category score trends across attempts of the same bank (Review screen) | ✅ in |
+| f | Keyboard shortcuts | ❌ not now |
+| g | Timer showing time spent; can be turned off in Settings | ✅ in |
+| h | "What's new" page in Help, built from the `//vX.Y.Z` notes | ✅ in |
+
+**Show-answer scoring (decided by user):**
+- Revealed questions are **not scored**, *unless an incorrect answer was logged before Show answer was clicked*. That case counts as **incorrect**.
+- Revealed with no answer → excluded from the score; shown as "Revealed — not scored".
+- *Assumed (confirm):* answered **correctly** before reveal → counts as correct. The answer was committed before seeing the solution.
+- Once revealed, the question's answer **locks**, so it can't be changed afterwards.
+- Excluded questions leave the score denominator. Results show "X of Y scored (Z revealed)". Category stats and trends use the same rule.
+- Store the answer-at-reveal-time in `revealed[]`, e.g. `null` = not revealed, `{at, answerBefore}` = revealed.
+
+### Settings (full app; Lite gets the applicable subset)
+- **Appearance:**
+  - theme (Light / Dark / Match system)
+  - accent color presets
+  - color-blind-safe correct/incorrect colors
+  - reduced motion
+- **Text:**
+  - font size scale
+  - line spacing
+  - font (System / Serif / Atkinson Hyperlegible, inlined as base64 woff2; OFL license)
+- **Quiz:**
+  - shuffle questions on/off
+  - shuffle options on/off
+  - show category tag
+  - warn on submit with unanswered or flagged questions
+  - Focus cut-off (default 70%)
+  - Show-answer button on/off
+  - timer on/off
+- **Follow-up:** default difficulty, default question count.
+- **Saving:**
+  - link saves folder (Chrome/Edge)
+  - prompt to download a save file (Lite / unsupported browsers): on Submit + optional interval
+- **Privacy:** share anonymous usage stats (on by default; off disables analytics).
+- **Data:**
+  - storage used
+  - export all
+  - import
+  - clear all (with confirmation)
+  - show the browser notice again
+
+### Feedback tab
+- Embedded **Google Form** (iframe) with a fallback link. Prefill the app version and browser using the form's prefilled-URL entry IDs.
+- **No email address anywhere in the app.** The form replaces it.
+
+### Help tab
+- Subject-agnostic guide, with the medical pipeline as the worked example.
+- Rebuild it from `docs/guides/instructions_quiz_qrusher_v2.1.pdf` and update it. The PDF is out of date: it names `*_v2.md` prompts and `quiz_qrusher_v2.html`, and has no saving, notes, flags or tutor mode.
+- Sections:
+  - Getting started
+  - The AI workflow: model table and Steps 1–5 using the current prompt names `slide_miner_v1`, `data_sanitizer_v2` (optional step 1.5), `style_researcher_v2`, `que_generator_v3`
+  - Taking a quiz: flags, notes, Tutor/Test mode, Show answer, timer
+  - Saving and resuming: autosave, saves folder, export/import, browser limits
+  - Review and retake
+  - Follow-up requests
+  - Lite version
+  - Settings
+  - Privacy
+  - What's new
+- Each prompt gets copy and download buttons.
+
+### Prompts
+- Current medical set: `prompts/medical/` (slide_miner_v1, data_sanitizer_v2, style_researcher_v2, que_generator_v3).
+- Home footer: "Download prompts" downloads a zip. Either commit a prebuilt `prompts/medical/medical_prompts.zip` or build a store-only zip in JS; prefer the prebuilt zip.
+- **Prompt Builder tab** (any subject or major):
+  - Form inputs: subject or course, level (undergrad / grad / professional / board exam), exam style (e.g. USMLE Step 1, FE, AP), difficulty, question count.
+  - Output: the four pipeline prompts with copy/download.
+  - Make generic templates from the medical prompts with `{{placeholders}}`.
+  - Build this **last**; if time runs short, ship 3.0 with the medical set and "More subjects coming".
+- EE prompts: not needed for 3.0 (`prompts/ee/README.md` placeholder).
+
+### Analytics
+- User wants usage stats, privacy-friendly. Use **GoatCounter**: no cookies, no personal data, free for non-commercial use, one script tag.
+- Track page views plus a few events: quiz started / submitted, tutor mode used, Lite downloaded, prompts downloaded, feedback opened.
+- Respect the Privacy setting and Do Not Track. Never send quiz content or file names.
+- No analytics in Lite.
+- Disclose in Help → Privacy.
+
+### Code conventions
+- Keep everything single-file per app, the inline `//v3.0` change comments, and vanilla JS matching the v2.3.3 style.
+- Shared code between `index.html` and `lite.html` (settings, theme, save format, CSV parser): keep identical blocks fenced with `/* === QQ-SHARED:<name> === */ … /* === /QQ-SHARED === */`. When one changes, copy it to the other.
+
+---
+
+## 3. Repo and GitHub Pages
+- Repo name: **`Quiz_Qrusher`**, public (free GitHub Pages needs public).
+  - GitHub user: `BraxtonStryker` (`gh` is logged in).
+  - Site: `https://braxtonstryker.github.io/Quiz_Qrusher/`. The repo path is case-sensitive.
+- **Commit identity (repo-local, not global):** `git config user.name "Brax"` and `git config user.email "124317557+BraxtonStryker@users.noreply.github.com"`. Set this **before the first commit**. The user's gmail must not appear in any commit. Check with `git log --format='%an <%ae>'` before pushing.
+- **Private, never pushed:** `test-data/csv/`, `docs/guides/` (the PDFs are replaced by the in-app Help menu), `_archive_local/`. All are gitignored.
+- Push the previous versions **one at a time** so the history shows version control. Plan:
+  1. Create the history with the app as a single file, `quiz_qrusher.html` at the repo root. One commit per version, in order: v1, v2.0, v2.1.0, v2.2, v2.3.0, v2.3.1, v2.3.2, v2.3.3. Tag each `vX.Y.Z`, so GitHub shows real diffs between versions. Write the commit messages from the actual diffs and the `//vX` comments. (v2.1.1 was byte-identical to v2.1.0 and was dropped, so tag v2.1.1 on the same commit.)
+  2. Then one commit adding the organized tree (`versions/`, `prompts/`, `docs/V3_PLAN.md`, `test-data/saves_v2/`, `CLAUDE.md`, `.gitignore`). Remove the temporary root `quiz_qrusher.html` in that commit.
+  3. Then the v3 work.
+- **No backdating** (decided). Commits just need to be in version order.
+- Enable Pages: deploy from the `main` branch, root folder.
+
+---
+
+## 4. Build phases (tick as done)
+- [ ] **0. Repo:** `git init`, set the repo-local identity from §3, build the history, create `Quiz_Qrusher` on GitHub, push, enable Pages. All Phase 0 decisions are made.
+- [ ] **1. Folder-access test page** (`test-data/fsa_test.html`). The user opens it **from disk** in Chrome and Edge. It reports:
+  - Can it link a folder?
+  - Does the handle survive a reload or a browser restart?
+  - Does a newly downloaded copy of the file still see the handle (shared `file://` storage)?
+  - Can the page overwrite its own file?
+
+  Record the results here; they decide the Lite saving and Apply design.
+- [ ] **2. Core:**
+  - app shell (tabs, Home tiles)
+  - storage layer (IndexedDB plus fallback)
+  - v3 save format
+  - library (banks/attempts)
+  - Start / Resume / Review / Import (v3 JSON, v2 txt+CSV, CSV)
+  - autosave
+  - Export backup
+- [ ] **3. Quiz features:** Tutor/Test toggle + Show answer, timer, retake missed/flagged, category trends, Help from the quiz screen.
+- [ ] **4. Settings + theming:** move all colors to tokens, the Settings tab, the unsupported-browser dialog.
+- [ ] **5. Saves folder** (Chrome/Edge): link, reconnect, debounced writes, reconciliation, multi-tab safety, status line.
+- [ ] **6. Lite:**
+  - `lite.html` from v2.3.3 + shared blocks
+  - baked settings + Apply regeneration
+  - "Download for offline use" from the full app
+  - prompt-to-download setting
+- [ ] **7. Content tabs:**
+  - Help (+ What's new, Privacy)
+  - Feedback (Form iframe; placeholder until the link arrives)
+  - prompts zip + Home footer
+  - GoatCounter (placeholder code until the account exists)
+- [ ] **8. PWA:** manifest, service worker (versioned cache, update toast), icons.
+- [ ] **9. Prompt Builder** (generic subject templates).
+- [ ] **10. Release:**
+  - test in Chrome, Edge, Firefox and Safari (desktop + iPad if possible), both from the site and opened from disk
+  - tag `v3.0.0`
+  - update the "What's new" page
+
+---
+
+## 5. Open items (ask the user when you reach them)
+1. **Google Form link (Phase 7):** the user is creating it. If prefilling is wanted, the form needs "App version" and "Browser" short-answer fields. Use a placeholder until the link arrives.
+2. **GoatCounter site code (Phase 7):** the user needs an account at goatcounter.com. Use a placeholder until then.
+3. **Show-answer edge case:** a correct answer given before the reveal is assumed to count as correct (§2 Quiz features). Confirm when building Phase 3.
+
+Resolved on 2026-10-14:
+- `gh` is logged in.
+- Use the noreply commit email.
+- No backdating.
+- `test-data/csv/` and `docs/guides/` stay private.
+- Show-answer scoring is decided.
+- Lite non-Chrome saving is browser storage plus downloaded JSON (trial).
+- The download prompt fires on Submit, plus an optional interval set in Settings.

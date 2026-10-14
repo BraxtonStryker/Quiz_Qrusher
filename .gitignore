@@ -1,0 +1,10 @@
+# local-only: old release zips and scratch notes
+_archive_local/
+
+# private: lecture-derived question banks, and the old guide PDFs (contain personal email; content moves into the in-app Help menu)
+test-data/csv/
+docs/guides/
+
+.DS_Store
+Thumbs.db
+desktop.ini

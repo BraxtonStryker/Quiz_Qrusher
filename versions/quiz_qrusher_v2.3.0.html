@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Qrusher v2.3</title>
+<style>
+  :root{
+    --bg:#EEF1F5; --surface:#FFFFFF; --surface-2:#F6F8FB;
+    --ink:#131A24; --muted:#616B7A; --line:#E2E7EE;
+    --accent:#4338CA; --accent-hover:#372FB0; --accent-soft:#ECEBFB;
+    --good:#0F9D74; --good-soft:#E4F5EF;
+    --bad:#DC4B54; --bad-soft:#FBEAEB;
+    --radius:12px; --radius-sm:9px;
+    --shadow:0 1px 2px rgba(19,26,36,.06), 0 8px 24px rgba(19,26,36,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0E1218; --surface:#161C25; --surface-2:#1C2531;
+      --ink:#E8ECF2; --muted:#96A0AD; --line:#263140;
+      --accent:#8B87FF; --accent-hover:#A6A2FF; --accent-soft:#23233A;
+      --good:#34C79A; --good-soft:#12271F;
+      --bad:#F0757C; --bad-soft:#2A1618;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5; font-size:16px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:660px; margin:0 auto; padding:32px 20px 96px}
+  h1,h2,h3{margin:0; font-weight:650; letter-spacing:-.01em}
+  button{font-family:inherit; cursor:pointer}
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, .opt:focus-within, .drop:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+  .btn{
+    border:none; border-radius:var(--radius-sm); padding:12px 20px;
+    font-size:15px; font-weight:600; background:var(--accent); color:#fff; transition:background .15s ease;
+  }
+  .btn:hover{background:var(--accent-hover)}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+  .btn.ghost{background:transparent; color:var(--ink); border:1px solid var(--line)}
+  .btn.ghost:hover{background:var(--surface-2)}
+  .btn.subtle{background:var(--surface); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow)}
+  .btn.subtle:hover{background:var(--surface-2)}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+  .muted{color:var(--muted)}
+  .hidden{display:none !important}
+
+  /* ---------- Start ---------- */
+  .hero{padding:40px 32px 36px}
+  .hero h1{font-size:30px; line-height:1.15}
+  .hero p.lede{color:var(--muted); font-size:16px; margin:12px 0 28px; max-width:48ch}
+  .drop{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    text-align:center; padding:38px 24px; border:1.5px dashed var(--line); border-radius:var(--radius);
+    background:var(--surface-2); transition:border-color .15s ease, background .15s ease; cursor:pointer;
+  }
+  .drop.drag{border-color:var(--accent); background:var(--accent-soft)}
+  .drop .glyph{width:44px; height:44px; border-radius:11px; display:grid; place-items:center; background:var(--accent-soft); color:var(--accent)}
+  .drop .glyph svg{width:22px; height:22px}
+  .filehint{font-size:14px; color:var(--muted)}
+  .startfoot{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:22px}
+  .linkbtn{background:none; border:none; color:var(--accent); font-size:14px; font-weight:600; padding:6px 2px; text-decoration:underline; text-underline-offset:3px}
+  .err{margin-top:16px; padding:12px 14px; border-radius:var(--radius-sm); background:var(--bad-soft); color:var(--bad); font-size:14px; border:1px solid color-mix(in srgb, var(--bad) 25%, transparent)}
+
+  /* ---------- Progress ---------- */
+  .topbar{position:sticky; top:0; z-index:5; background:var(--bg); padding:10px 0 6px}
+  .progress{height:5px; background:var(--line); border-radius:999px; overflow:hidden}
+  .progress > span{display:block; height:100%; width:0; background:var(--accent); border-radius:999px; transition:width .25s ease}
+  .qmeta{display:flex; justify-content:space-between; align-items:center; margin:12px 2px 2px}
+  .counter{font-size:14px; color:var(--muted); font-variant-numeric:tabular-nums}
+  .shuffled{font-size:12.5px; color:var(--muted)}
+  .tag{display:inline-block; font-size:12.5px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:4px 10px; border-radius:999px}
+
+  /* ---------- Questions (scrollable list) ---------- */
+  #qList{display:flex; flex-direction:column; gap:16px; margin-top:8px}
+  .qblock{padding:22px 22px}
+  .qhead{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+  .qidx{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; font-weight:600; color:var(--muted); background:var(--surface-2); border:1px solid var(--line); border-radius:6px; padding:2px 8px}
+  .qtext{font-size:18.5px; line-height:1.4; font-weight:600; margin-bottom:16px}
+  .opts{display:flex; flex-direction:column; gap:10px}
+  .opt{
+    display:flex; align-items:flex-start; gap:13px; padding:13px 15px; border:1.5px solid var(--line);
+    border-radius:var(--radius-sm); background:var(--surface); cursor:pointer; transition:border-color .12s ease, background .12s ease;
+  }
+  .opt:hover{border-color:color-mix(in srgb, var(--accent) 45%, var(--line))}
+  .opt.sel{border-color:var(--accent); background:var(--accent-soft)}
+  .opt input{position:absolute; opacity:0; width:0; height:0}
+  .radio{flex:0 0 auto; width:20px; height:20px; border-radius:50%; border:2px solid var(--line); margin-top:1px; display:grid; place-items:center; transition:border-color .12s ease}
+  .opt.sel .radio{border-color:var(--accent)}
+  .radio::after{content:""; width:10px; height:10px; border-radius:50%; background:var(--accent); transform:scale(0); transition:transform .12s ease}
+  .opt.sel .radio::after{transform:scale(1)}
+  .opt .otext{font-size:15.5px}
+  .opt .onum{color:var(--muted); font-variant-numeric:tabular-nums; margin-right:2px; font-weight:600}
+
+  .endbar{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:18px 20px; margin-top:20px}
+  .endbar .btn{font-size:16px; padding:13px 26px}
+
+  /* ---------- Results ---------- */
+  .scorecard{padding:34px 28px; text-align:center}
+  .scorenum{font-size:60px; font-weight:700; letter-spacing:-.03em; line-height:1; font-variant-numeric:tabular-nums}
+  .scorefrac{margin-top:8px; color:var(--muted); font-size:16px; font-variant-numeric:tabular-nums}
+  .scoremsg{margin-top:14px; font-size:15px}
+  .section-title{font-size:15px; font-weight:650; margin:32px 2px 12px; letter-spacing:-.01em}
+  .catrow{padding:14px 16px; border-bottom:1px solid var(--line)}
+  .catrow:last-child{border-bottom:none}
+  .catrow .cattop{display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:8px}
+  .catrow .catname{font-weight:600; font-size:15px}
+  .catrow .catscore{font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums}
+  .bar{height:7px; background:var(--line); border-radius:999px; overflow:hidden}
+  .bar > span{display:block; height:100%; border-radius:999px}
+  .flag{display:inline-block; margin-left:8px; font-size:11.5px; font-weight:700; color:var(--bad); background:var(--bad-soft); padding:2px 8px; border-radius:999px}
+  .missed{padding:16px 18px; border-bottom:1px solid var(--line)}
+  .missed:last-child{border-bottom:none}
+  .missed .mtag{font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px}
+  .missed .mq{font-weight:600; font-size:15.5px; margin-bottom:12px; line-height:1.35}
+  .ans{display:flex; align-items:flex-start; gap:9px; font-size:14.5px; padding:4px 0}
+  .ans .ic{flex:0 0 auto; width:18px; height:18px; margin-top:1px}
+  .ans.wrong{color:var(--bad)} .ans.right{color:var(--good)}
+  .ans .lab{color:var(--muted); font-weight:600; margin-right:2px}
+  .allright{padding:22px; text-align:center; color:var(--good); font-weight:600}
+
+  .fu{padding:18px 20px; margin-top:32px}
+  .fu-title{font-weight:650; font-size:15px; margin-bottom:4px}
+  .fu-sub{font-size:13px; color:var(--muted); margin-bottom:14px}
+  .fu-row{display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px}
+  .fu-field{display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--muted); font-weight:600}
+  .fu-field select, .fu-field input{font-family:inherit; font-size:14.5px; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:9px 11px}
+  .fu-field select{min-width:180px}
+  .fu-field input{width:120px}
+  .fu-row .linkbtn{margin-bottom:9px}
+
+  .results-actions{display:flex; flex-wrap:wrap; gap:10px; margin-top:20px}
+
+  @media (max-width:480px){
+    .hero{padding:30px 22px 28px} .hero h1{font-size:25px}
+    .qblock{padding:20px 18px} .qtext{font-size:17px}
+    .scorenum{font-size:50px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ====== START ====== -->
+  <section id="startScreen">
+    <div class="card hero">
+      <h1>Quiz Qrusher v2.3</h1>
+      <p class="lede">Load a CSV of questions, take the quiz offline, and get a graded report that flags your weak categories. Option and question order is reshuffled on every attempt.</p>
+
+      <label class="drop" id="dropZone" for="fileInput" tabindex="0" role="button" aria-label="Choose a CSV file">
+        <span class="glyph" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+          </svg>
+        </span>
+        <div><strong>Choose a CSV file</strong> or drop it here</div>
+        <span class="filehint">Headers: Category, Question_Text, Option_1&hellip;Option_6, Correct_Option_Number</span>
+      </label>
+      <input type="file" id="fileInput" accept=".csv,text/csv" class="hidden">
+
+      <div id="startError" class="err hidden" role="alert"></div>
+
+      <div id="restoreSection" style="margin-top:20px"> <!--v2.3-->
+        <textarea id="restoreCode" placeholder="Optional: Paste a Resume Code here from a previous session" style="width:100%;height:30px;font-family:monospace;"></textarea>
+        
+        <p class="muted" style="font-size:13px">
+          Load the CSV first.
+          If resuming a quiz, paste the Resume Code.
+          Then click Start Quiz.
+        </p>
+      </div>
+      
+
+      <div class="startfoot">
+        <button class="btn" id="startQuizBtn" type="button" disabled> Start Quiz </button>
+        <button class="btn" id="restoreBtn" type="button">Restore Saved Attempt</button>
+        <button class="linkbtn" id="templateBtn" type="button">Download an example CSV</button>
+        <span class="muted" style="font-size:13px" id="loadedInfo"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== QUIZ ====== -->
+  <!-- <section id="quizScreen" class="hidden">                            // removed in v2.3
+    <div class="topbar">
+      <div class="progress"><span id="progressFill"></span></div>
+      <div class="qmeta">
+        <span class="counter" id="answeredCounter">0 of 0 answered</span>
+        <span class="shuffled">Options shuffled</span>
+      </div>
+    </div>
+
+    <div id="qList"></div>
+
+    <div class="endbar card">
+      <span class="muted" id="unansweredNote"></span>
+      <button class="btn" id="submitBtn" type="button">Submit quiz</button>
+    </div>
+  </section> -->
+  <section id="quizScreen" class="hidden"> <!--v2.3-->
+    <div class="topbar">
+      <div class="progress"><span id="progressFill"></span></div>
+      <div class="qmeta">
+        <span class="counter" id="answeredCounter">0 of 0 answered</span>
+        <span class="shuffled">Options shuffled</span>
+      </div>
+    </div>
+
+    <div id="qList"></div>
+
+  <!-- Resume / Save Code -->
+    <div class="card" style="margin-top:20px;padding:16px">
+      <div style="font-weight:600">
+        Resume Code
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+        Copy this code to continue later.
+      </div>
+      <textarea id="saveCode" readonly style="width:100%;height:90px;font-family:monospace;">
+      </textarea>
+    </div>
+    <div class="endbar card">
+        <span class="muted" id="unansweredNote"></span>
+        <button class="btn" id="submitBtn" type="button">Submit quiz</button>
+    </div>
+  </section>
+
+  <!-- ====== RESULTS ====== -->
+  <section id="resultsScreen" class="hidden">
+    <div class="card scorecard">
+      <div class="scorenum" id="scorePct">0%</div>
+      <div class="scorefrac" id="scoreFrac">0 of 0 correct</div>
+      <div class="scoremsg muted" id="scoreMsg"></div>
+    </div>
+
+    <div class="section-title">Performance by category</div>
+    <div class="card" id="catList"></div>
+
+    <div class="section-title" id="missedTitle">Questions to review</div>
+    <div class="card" id="missedList"></div>
+
+    <div class="fu card">
+      <div class="fu-title">Follow-up request</div>
+      <div class="fu-sub">Builds a filled-in remediation directive (.md) from your misses, ready to hand to a question-generation model.</div>
+      <div class="fu-row">
+        <label class="fu-field"><span>Difficulty tier</span>
+          <select id="fuDifficulty">
+            <option>Moderate</option>
+            <option selected>Challenging</option>
+            <option>Very Challenging</option>
+          </select>
+        </label>
+        <label class="fu-field"><span>Question quantity</span>
+          <input id="fuQuantity" type="number" min="1" max="50" value="8">
+        </label>
+        <button class="linkbtn" id="fuTemplateBtn" type="button">Download blank template</button>
+      </div>
+    </div>
+
+    <div class="results-actions">
+      <button class="btn" id="downloadFuBtn" type="button">Follow-up request (.md)</button>
+      <button class="btn subtle" id="downloadTxtBtn" type="button">Report (.txt)</button>
+      <button class="btn subtle" id="downloadCsvBtn" type="button">Missed (.csv)</button>
+      <button class="btn ghost" id="retakeBtn" type="button">Retake (reshuffled)</button>
+      <button class="btn ghost" id="newFileBtn" type="button">New file</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var questions = [];   // {category, text, options:[{n,text}], correct, display:[{n,text}]}
+  var answers = [];     // selected ORIGINAL option number per question (or null)
+  var fileName = "";
+  var sourceText = "";
+  var lastResults = null;
+  var memoryLastSig = {}; // in-memory fallback for non-repeat guarantee
+  var scrambleTick = 0;   // monotonic, so successive scrambles differ regardless of the clock
+
+  var el = function(id){ return document.getElementById(id); };
+
+  /* ---------- CSV parsing (lenient: fields may be quoted or unquoted) ----------
+     A field counts as quoted only when a '"' is its first non-blank character, so
+     stray quotes inside unquoted data (e.g. 5'3" or a "logic high") stay literal
+     instead of hijacking the parser. Inside a quoted field, a lone '"' closes it
+     only when followed by a comma / newline / EOF; otherwise it's treated as a
+     literal inner quote, so both ""escaped"" and un-escaped inner quotes survive.
+     Embedded commas and newlines inside quotes, CRLF/CR endings, and a BOM are
+     all handled. */
+  function parseCSV(text){
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    text = text.replace(/\r\n?/g, "\n");                              // normalize CRLF / lone CR
+    var rows = [], row = [], i = 0, n = text.length;
+    while (i < n){
+      // ----- read ONE field starting at i -----
+      var field = "", j = i;
+      while (j < n && (text[j] === ' ' || text[j] === '\t')) j++;     // peek past leading blanks
+      if (j < n && text[j] === '"'){
+        i = j + 1;                                                    // quoted field (blanks before quote ok)
+        while (i < n){
+          var c = text[i];
+          if (c === '"'){
+            if (text[i+1] === '"'){ field += '"'; i += 2; continue; } // "" -> literal "
+            var k = i + 1;                                            // is this the closing quote?
+            while (k < n && (text[k] === ' ' || text[k] === '\t')) k++;
+            if (k >= n || text[k] === ',' || text[k] === '\n'){ i++; break; }
+            field += '"'; i++; continue;                             // un-escaped inner quote -> literal
+          }
+          field += c; i++;
+        }
+        while (i < n && text[i] !== ',' && text[i] !== '\n') i++;     // drop blanks after closing quote
+      } else {
+        while (i < n && text[i] !== ',' && text[i] !== '\n'){ field += text[i]; i++; } // unquoted: quotes literal
+      }
+      row.push(field);
+      // ----- terminator -----
+      if (i < n && text[i] === ','){ i++; continue; }                 // next field, same row
+      if (i < n && text[i] === '\n'){ rows.push(row); row = []; i++; continue; }
+      rows.push(row); row = []; break;                                // EOF ends the last row
+    }
+    return rows.filter(function(r){ return r.some(function(v){ return v.trim() !== ""; }); });
+  }
+
+  // Normalize a header cell for matching: drop "(1-6)" / "[1-6]" style annotations,
+  // lowercase, then strip spaces, underscores, hyphens and other punctuation. So
+  // "Correct_Option_Number (1-6)", "Correct Option Number", etc. all reduce to
+  // "correctoptionnumber".
+  function norm(s){
+    return String(s == null ? "" : s)
+      .replace(/[\(\[\{][^)\]\}]*[\)\]\}]?/g, " ")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "");
+  }
+  function headerIndex(headerRow){ var m = {}; headerRow.forEach(function(h, i){ m[norm(h)] = i; }); return m; }
+  // Resolve a required column tolerantly: exact normalized match first, then a
+  // header that merely starts with the canonical key (covers a trailing
+  // annotation that wasn't in brackets, e.g. "Correct Option Number 1 to 6").
+  function findCol(h, key){
+    if (key in h) return h[key];
+    var keys = Object.keys(h);
+    for (var i = 0; i < keys.length; i++){ if (keys[i].indexOf(key) === 0) return h[keys[i]]; }
+    return undefined;
+  }
+
+  function buildQuestions(rows){
+    if (rows.length < 2) throw new Error("The file needs a header row and at least one question.");
+    var h = headerIndex(rows[0]);
+    var catCol = findCol(h, "category"), qCol = findCol(h, "questiontext"), ansCol = findCol(h, "correctoptionnumber");
+    if (catCol == null || qCol == null || ansCol == null){
+      throw new Error("Missing required columns. Expected Category, Question_Text and Correct_Option_Number.");
+    }
+    var optCols = []; for (var n = 1; n <= 6; n++){ optCols.push(findCol(h, "option" + n)); }
+    var out = [];
+    for (var r = 1; r < rows.length; r++){
+      var row = rows[r];
+      var get = function(idx){ return (idx == null || idx >= row.length) ? "" : String(row[idx]).trim(); };
+      var qtext = get(qCol); if (!qtext) continue;
+      var options = [];
+      for (var k = 0; k < 6; k++){ var t = get(optCols[k]); if (t !== "") options.push({ n: k + 1, text: t }); }
+      if (options.length < 2) continue;
+      var correct = parseInt(get(ansCol), 10);
+      if (!options.some(function(o){ return o.n === correct; })) continue;
+      out.push({id: hashStr((get(catCol) || "Uncategorized") +"|" + qtext +"|" + correct),category: get(catCol) || "Uncategorized",text: qtext,options: options,correct: correct});
+    }
+    if (out.length === 0) throw new Error("No valid questions found. Check that each row has a question, at least two options, and a correct option number.");
+    return out;
+  }
+
+  /* ---------- Scrambler: seeded RNG, Fisher-Yates, no-repeat vs. previous attempt ---------- */
+  function mulberry32(a){
+    return function(){
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function hashStr(s){ var h = 2166136261 >>> 0; for (var i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function shuffle(arr, rnd){ var a = arr.slice(); for (var i = a.length - 1; i > 0; i--){ var j = Math.floor(rnd() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+
+  // Grading never depends on display order: the radio value carries the ORIGINAL option number,
+  // and q.correct is the ORIGINAL number, so any permutation is safe.
+  // -------------------------------------------------------------------
+    // -------------------------------------------------------------------
+      // -------------------------------------------------------------------
+        // -------------------------------------------------------------------
+          // -------------------------------------------------------------------
+  //removed in v2.2                         // function scrambleAll(){
+  //   var key = String(hashStr(sourceText));
+  //   var storeKey = "quizQrusher:lastorder:" + key;
+  //   var prevSig = memoryLastSig[key];
+  //   try { var stored = localStorage.getItem(storeKey); if (stored != null) prevSig = stored; } catch (e) {}
+
+  //   scrambleTick = (scrambleTick + 1) >>> 0;
+  //   var seedBase = (hashStr(sourceText) ^ (Date.now() >>> 0) ^ Math.imul(scrambleTick, 2654435761)) >>> 0;
+  //   var sig = "", attempts = 0;
+  //   do {
+  //     var rnd = mulberry32((seedBase + attempts * 2654435761) >>> 0);
+  //     questions.forEach(function(q){ q.display = shuffle(q.options, rnd); });
+  //     sig = questions.map(function(q){ return q.display.map(function(o){ return o.n; }).join(""); }).join("|");
+  //     attempts++;
+  //   } while (sig === prevSig && attempts < 16); // don't repeat last attempt's arrangement
+
+  //   memoryLastSig[key] = sig;
+  //   try { localStorage.setItem(storeKey, sig); } catch (e) {}
+  // }
+
+  function scrambleAll(){//v2.2
+  var key = String(hashStr(sourceText));
+  var storeKey = "quizQrusher:lastorder:" + key;
+  var prevSig = memoryLastSig[key];
+  try {var stored = localStorage.getItem(storeKey); if (stored != null) prevSig = stored; } catch (e) {}
+
+  scrambleTick = (scrambleTick + 1) >>> 0;
+  var seedBase = (hashStr(sourceText) ^ (Date.now() >>> 0) ^ Math.imul(scrambleTick, 2654435761)) >>> 0;
+  var sig = "", attempts = 0;
+  do {
+    var rnd = mulberry32((seedBase + attempts * 2654435761) >>> 0);
+    // NEW: shuffle question order
+    scrambleQuestions(rnd);
+    // Existing answer shuffling
+    questions.forEach(function(q){
+      q.display = shuffle(q.options, rnd);
+    });
+    // Signature now includes question order + option order
+    sig = questions.map(function(q){
+      return hashStr(q.text) + ":" +
+             q.display.map(function(o){ return o.n; }).join("");
+    }).join("|");
+    attempts++;
+  } while (sig === prevSig && attempts < 16);
+  memoryLastSig[key] = sig;
+  try {
+    localStorage.setItem(storeKey, sig);
+  } catch (e) {}
+}
+
+function generateSaveCode(){//v2.3
+  var state = {version: 1, csvHash: hashStr(sourceText),
+    questionOrder:questions.map(function(q){return q.id;}),
+    optionOrder:questions.map(function(q){return q.display.map(function(o){return o.n;});}),
+    answers: answers,timestamp: Date.now()
+  };
+  return btoa(JSON.stringify(state));
+}
+
+function restoreSaveCode(code){//v2.3
+  var state;
+  try{ state = JSON.parse(atob(code));}
+  catch(e){throw new Error("Invalid save code.");}
+  if(state.csvHash !== hashStr(sourceText)){
+    throw new Error(
+      "Save code does not belong to this CSV."
+    );
+  }
+  var lookup = {};
+  questions.forEach(function(q){
+    lookup[q.id] = q;
+  });
+  questions =state.questionOrder.map(function(id){return lookup[id];});
+  questions.forEach(function(q, idx){var order =state.optionOrder[idx];
+    q.display =
+      order.map(function(optNum){
+        return q.options.find(function(o){
+          return o.n === optNum;
+        });
+      });
+  });
+  answers = state.answers.slice();
+  renderList();
+  questions.forEach(function(q, i){
+    if(answers[i] == null) return;
+    var value = String(answers[i]);
+    var radios =
+      document.querySelectorAll(
+        'input[name="q' + i + '"]'
+      );
+    Array.prototype.forEach.call(
+      radios,
+      function(radio){
+        if(radio.value === value){
+          radio.checked = true;
+          var label =
+            radio.closest(".opt");
+          if(label)
+            label.classList.add("sel");
+        }
+      }
+    );
+  });
+  updateProgress();
+  updateSaveCode();
+}
+
+
+
+
+
+
+
+  /* ---------- Screens ---------- */
+  function show(id){
+    ["startScreen","quizScreen","resultsScreen"].forEach(function(s){ el(s).classList.toggle("hidden", s !== id); });
+    window.scrollTo(0, 0);
+  }
+
+  function loadText(text, name){
+    var startErr = el("startError"); startErr.classList.add("hidden");
+    try { sourceText = text; questions = buildQuestions(parseCSV(text)); }
+    catch (e){ startErr.textContent = e.message; startErr.classList.remove("hidden"); return; }
+    // fileName = name || "quiz";          // removed in v2.3
+    // answers = questions.map(function(){ return null; });
+    // scrambleAll();
+    // renderList();
+    // updateSaveCode();
+    // show("quizScreen");
+    fileName = name || "quiz"; //v2.3
+    loadedQuestions = JSON.parse(JSON.stringify(questions));
+    answers = questions.map(function(){return null;});
+    el("startQuizBtn").disabled = false;
+    el("loadedInfo").textContent = questions.length +" questions loaded.";
+    show("startScreen");
+  }
+
+  function handleFile(file){
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){ loadText(String(reader.result), file.name); };
+    reader.onerror = function(){ var e = el("startError"); e.textContent = "Could not read that file. Try choosing it again."; e.classList.remove("hidden"); };
+    reader.readAsText(file);
+  }
+
+  function startQuiz(){ //v2.3
+    questions = JSON.parse(JSON.stringify(loadedQuestions));
+    answers = questions.map(function(){ return null;});
+    if(pendingRestoreCode){
+      try{restoreSaveCode(pendingRestoreCode);}
+      catch(err){alert(err.message);return;}
+    } else {
+      scrambleAll();
+      renderList();
+      updateSaveCode();
+    }
+    show("quizScreen");
+  }
+
+  /* ---------- Render scrollable list ---------- */
+  function renderList(){
+    var list = el("qList"); list.innerHTML = "";
+    questions.forEach(function(q, i){
+      var block = document.createElement("div"); block.className = "card qblock";
+      var head = document.createElement("div"); head.className = "qhead";
+      var idx = document.createElement("span"); idx.className = "qidx"; idx.textContent = "Q" + (i + 1);
+      var tag = document.createElement("span"); tag.className = "tag"; tag.textContent = q.category;
+      head.appendChild(idx); //head.appendChild(tag);
+
+      var qt = document.createElement("div"); qt.className = "qtext"; qt.textContent = q.text;
+
+      var opts = document.createElement("div"); opts.className = "opts";
+      opts.setAttribute("role", "radiogroup"); opts.setAttribute("aria-label", "Answer options for question " + (i + 1));
+
+      q.display.forEach(function(o, pos){
+        var label = document.createElement("label"); label.className = "opt";
+        var input = document.createElement("input"); input.type = "radio"; input.name = "q" + i; input.value = String(o.n);
+        var dot = document.createElement("span"); dot.className = "radio"; dot.setAttribute("aria-hidden", "true");
+        var txt = document.createElement("span"); txt.className = "otext";
+        var num = document.createElement("span"); num.className = "onum"; num.textContent = (pos + 1) + ".";
+        txt.appendChild(num); txt.appendChild(document.createTextNode(" " + o.text));
+        label.appendChild(input); label.appendChild(dot); label.appendChild(txt);
+        input.addEventListener("change", function(){
+          answers[i] = o.n;
+          Array.prototype.forEach.call(opts.querySelectorAll(".opt"), function(l){ l.classList.remove("sel"); });
+          label.classList.add("sel");
+          updateProgress();
+          updateSaveCode();
+        });
+        opts.appendChild(label);
+      });
+
+      block.appendChild(head); block.appendChild(qt); block.appendChild(opts);
+      list.appendChild(block);
+    });
+    updateProgress();
+    updateSaveCode();
+  }
+
+  function updateProgress(){
+    var ans = answers.filter(function(a){ return a !== null; }).length;
+    el("progressFill").style.width = (questions.length ? ans / questions.length * 100 : 0) + "%";
+    el("answeredCounter").textContent = ans + " of " + questions.length + " answered";
+    var un = questions.length - ans;
+    el("unansweredNote").textContent = un === 0 ? "All questions answered." : (un + (un === 1 ? " question" : " questions") + " still unanswered.");
+  }
+
+  function updateSaveCode(){ //v2.3
+    if(!questions.length) return;
+    var box = el("saveCode");
+    if(box)
+      box.value =
+        generateSaveCode();
+  }
+
+  /* ---------- Submit ---------- */
+  function submitQuiz(){
+    var un = answers.filter(function(a){ return a === null; }).length;
+    if (un > 0){
+      var msg = un === 1 ? "1 question is still unanswered. Submit anyway?" : un + " questions are still unanswered. Submit anyway?";
+      if (!window.confirm(msg)) return;
+    }
+    renderResults();
+    show("resultsScreen");
+  }
+
+  /* ---------- Results ---------- */
+  function optionText(q, num){ var f = q.options.filter(function(o){ return o.n === num; })[0]; return f ? f.text : ""; }
+
+  function computeResults(){
+    var correctCount = 0, cats = {}, missed = [];
+    questions.forEach(function(q, i){
+      var sel = answers[i], ok = sel === q.correct;
+      if (ok) correctCount++;
+      if (!cats[q.category]) cats[q.category] = { total: 0, correct: 0 };
+      cats[q.category].total++; if (ok) cats[q.category].correct++;
+      if (!ok) missed.push({ index: i, category: q.category, question: q.text, your: sel === null ? null : optionText(q, sel), correct: optionText(q, q.correct) });
+    });
+    return { correctCount: correctCount, total: questions.length, cats: cats, missed: missed };
+  }
+
+  function renderResults(){
+    var res = computeResults(); lastResults = res;
+    var pct = res.total ? Math.round(res.correctCount / res.total * 100) : 0;
+
+    el("scorePct").textContent = pct + "%";
+    el("scoreFrac").textContent = res.correctCount + " of " + res.total + " correct";
+    el("scoreMsg").textContent = pct === 100 ? "Perfect run — nothing to review."
+      : pct >= 80 ? "Strong. A couple of spots to tighten up."
+      : pct >= 60 ? "Solid base. Focus on the flagged categories below."
+      : "Plenty to work on — the report below is your study list.";
+
+    var catList = el("catList"); catList.innerHTML = "";
+    Object.keys(res.cats).sort(function(a, b){
+      var ra = res.cats[a].correct / res.cats[a].total, rb = res.cats[b].correct / res.cats[b].total;
+      return ra - rb || a.localeCompare(b);
+    }).forEach(function(name){
+      var c = res.cats[name], acc = c.correct / c.total, weak = acc < 0.7;
+      var row = document.createElement("div"); row.className = "catrow";
+      row.innerHTML = '<div class="cattop"><span class="catname"></span>' +
+        '<span class="catscore">' + c.correct + '/' + c.total + ' &middot; ' + Math.round(acc * 100) + '%</span></div>' +
+        '<div class="bar"><span style="width:' + (acc * 100) + '%;background:' + (weak ? 'var(--bad)' : 'var(--good)') + '"></span></div>';
+      var nm = row.querySelector(".catname"); nm.textContent = name;
+      if (weak){ var f = document.createElement("span"); f.className = "flag"; f.textContent = "Focus"; nm.appendChild(f); }
+      catList.appendChild(row);
+    });
+
+    var missedList = el("missedList"); missedList.innerHTML = "";
+    if (res.missed.length === 0){
+      el("missedTitle").textContent = "Questions to review";
+      missedList.innerHTML = '<div class="allright">You got every question right. Nice work.</div>';
+    } else {
+      el("missedTitle").textContent = "Questions to review (" + res.missed.length + ")";
+      res.missed.forEach(function(m){
+        var d = document.createElement("div"); d.className = "missed";
+        d.innerHTML =
+          '<div class="mtag"></div><div class="mq"></div>' +
+          '<div class="ans wrong"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>' +
+            '<div><span class="lab">Your answer:</span> <span class="youranswer"></span></div></div>' +
+          '<div class="ans right"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' +
+            '<div><span class="lab">Correct:</span> <span class="correctanswer"></span></div></div>';
+        d.querySelector(".mtag").textContent = m.category;
+        d.querySelector(".mq").textContent = m.question;
+        d.querySelector(".youranswer").textContent = m.your === null ? "Not answered" : m.your;
+        d.querySelector(".correctanswer").textContent = m.correct;
+        missedList.appendChild(d);
+      });
+    }
+
+    el("fuQuantity").value = String(Math.max(5, Math.min(10, res.missed.length || 5)));
+  }
+
+  /* ---------- Export helpers ---------- */
+  function pad(n){ return n < 10 ? "0" + n : "" + n; }
+  function stamp(){ var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+  function mmddyyhh(){ var d = new Date(); return pad(d.getMonth() + 1) + pad(d.getDate()) + pad(d.getFullYear() % 100) + pad(d.getHours()); }
+  function baseName(){ return (fileName.replace(/\.csv$/i, "") || "quiz") + "_report"; }
+
+  function download(content, filename, mime){
+    var blob = new Blob([content], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+
+  /* ---------- .txt report ---------- */
+  function buildTxtReport(){
+    var res = lastResults, pct = res.total ? Math.round(res.correctCount / res.total * 100) : 0, L = [];
+    L.push("QUIZ REPORT");
+    L.push("Generated: " + stamp());
+    L.push("Source: " + (fileName || "quiz"));
+    L.push("");
+    L.push("SCORE: " + res.correctCount + " / " + res.total + "  (" + pct + "%)");
+    L.push("");
+    var focus = Object.keys(res.cats).map(function(name){ var c = res.cats[name]; return { name: name, missed: c.total - c.correct, total: c.total, correct: c.correct }; })
+      .filter(function(c){ return c.missed > 0; }).sort(function(a, b){ return b.missed - a.missed || a.name.localeCompare(b.name); });
+    L.push("FOCUS AREAS (categories with missed questions)");
+    if (focus.length === 0) L.push("  None — full marks.");
+    else focus.forEach(function(c){ L.push("  - " + c.name + ": " + c.correct + "/" + c.total + " correct (" + c.missed + " missed)"); });
+    L.push("");
+    L.push("QUESTIONS TO REVIEW");
+    if (res.missed.length === 0) L.push("  None — every question correct.");
+    else res.missed.forEach(function(m, i){
+      L.push("");
+      L.push("[" + (i + 1) + "] Category: " + m.category);
+      L.push("Q: " + m.question);
+      L.push("Selected (your answer): " + (m.your === null ? "(not answered)" : m.your));
+      L.push("Correct answer: " + m.correct);
+    });
+    L.push("");
+    return L.join("\n");
+  }
+
+  /* ---------- missed .csv ---------- */
+  function csvCell(v){ v = String(v == null ? "" : v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  function buildMissedCsv(){
+    var res = lastResults, rows = [["Category","Question_Text","Your_Answer","Correct_Answer"]];
+    res.missed.forEach(function(m){ rows.push([m.category, m.question, m.your === null ? "" : m.your, m.correct]); });
+    return rows.map(function(r){ return r.map(csvCell).join(","); }).join("\r\n");
+  }
+
+  /* ---------- Stored fill-in-the-blank remediation template ---------- */
+  var REMEDIATION_TEMPLATE = [
+    "# Follow-up Remediation Request",
+    "",
+    "<!-- Auto-populated from quiz results. Replace any remaining [bracketed] fields before running. -->",
+    "",
+    "**Generated:** [[GENERATED]]  ",
+    "**Source quiz:** [[SOURCE]]  ",
+    "**Score:** [[SCORE]]",
+    "",
+    "## Attach before running",
+    "- `slide_data.md` — source lecture facts to build new items from",
+    "- `question_styling.md` — board-style formatting guidelines",
+    "",
+    "---",
+    "",
+    "### [TARGET REMEDIATION DIRECTIVE]",
+    "- **Target Areas of Focus:** [List 3-5 primary weak categories identified from the report]",
+    "- **Key Concepts to Retest:** [Specific mechanisms, pathways, or clinical presentations missed]",
+    "- **Misconceptions to Target:** [Specific incorrect choices selected by the student and why they were chosen]",
+    "- **Target Difficulty Tier:** [Moderate / Challenging / Very Challenging]",
+    "- **Target Question Quantity:** [Number of follow-up questions needed, e.g., 5-10]",
+    "",
+    "### [INSTRUCTIONS FOR FOLLOW-UP QUESTION GENERATION]",
+    "- Generate new 6-option multiple-choice questions targeting *only* the focal areas above.",
+    "- Do NOT reuse the vignettes or stems from the previous quiz; present novel clinical or experimental scenarios built on the same underlying facts in `slide_data.md`.",
+    "- Craft distractors specifically around the misconceptions listed above — especially the wrong options the student actually selected.",
+    "- Follow the board-style formatting rules in `question_styling.md`.",
+    "- Output the new batch strictly as CSV, with this header row and nothing else before or after:",
+    "",
+    "```",
+    "Category,Question_Text,Option_1,Option_2,Option_3,Option_4,Option_5,Option_6,Correct_Option_Number",
+    "```",
+    ""
+  ];
+
+  function fillTemplate(map){
+    var t = REMEDIATION_TEMPLATE.join("\n");
+    Object.keys(map).forEach(function(k){ t = t.split(k).join(map[k]); });
+    return t;
+  }
+
+  function buildFollowupMd(){
+    var res = lastResults, pct = res.total ? Math.round(res.correctCount / res.total * 100) : 0;
+    var focus = Object.keys(res.cats).map(function(name){ var c = res.cats[name]; return { name: name, missed: c.total - c.correct }; })
+      .filter(function(c){ return c.missed > 0; }).sort(function(a, b){ return b.missed - a.missed || a.name.localeCompare(b.name); });
+    var focusStr = focus.length ? focus.slice(0, 5).map(function(c){ return c.name; }).join(", ") : "None — full marks on this attempt.";
+    var concepts = res.missed.length ? "\n" + res.missed.map(function(m){ return "  - (" + m.category + ") " + m.question; }).join("\n") : " None — every question correct.";
+    var misc = res.missed.length ? "\n" + res.missed.map(function(m){
+        return m.your === null
+          ? "  - " + m.category + ": left unanswered; correct answer is \"" + m.correct + "\"."
+          : "  - " + m.category + ": selected \"" + m.your + "\" instead of the correct \"" + m.correct + "\".";
+      }).join("\n") : " None.";
+    var diff = el("fuDifficulty").value;
+    var qty = String(parseInt(el("fuQuantity").value, 10) || Math.max(5, Math.min(10, res.missed.length || 5)));
+
+    return fillTemplate({
+      "[[GENERATED]]": stamp(),
+      "[[SOURCE]]": fileName || "quiz",
+      "[[SCORE]]": res.correctCount + " / " + res.total + " (" + pct + "%)",
+      "[List 3-5 primary weak categories identified from the report]": focusStr,
+      "[Specific mechanisms, pathways, or clinical presentations missed]": concepts,
+      "[Specific incorrect choices selected by the student and why they were chosen]": misc,
+      "[Moderate / Challenging / Very Challenging]": diff,
+      "[Number of follow-up questions needed, e.g., 5-10]": qty
+    });
+  }
+
+  function buildBlankTemplate(){
+    return fillTemplate({
+      "[[GENERATED]]": "[auto-filled on export]",
+      "[[SOURCE]]": "[quiz file name]",
+      "[[SCORE]]": "[auto-filled on export]"
+    });
+  }
+
+  /* ---------- Blank CSV template: first-year MD examples ---------- */
+  function templateCsv(){
+    var rows = [
+      "Category,Question_Text,Option_1,Option_2,Option_3,Option_4,Option_5,Option_6,Correct_Option_Number",
+      'Biochemistry,"A neonate develops vomiting, jaundice, and hepatomegaly after starting breast milk. Deficiency of which enzyme causes classic galactosemia?",Galactokinase,Galactose-1-phosphate uridyltransferase,UDP-galactose 4-epimerase,Aldolase B,Fructokinase,Glucose-6-phosphatase,2',
+      'Physiology,"The second heart sound (S2) corresponds to closure of which valves?",Mitral and tricuspid,Aortic and pulmonic,Aortic and mitral,Pulmonic and tricuspid,Mitral and pulmonic,Tricuspid and aortic,2',
+      'Pharmacology,"Which best describes the mechanism of action of low-dose aspirin?",Reversible inhibition of COX-2,Irreversible acetylation of platelet COX-1,Competitive thromboxane receptor blockade,Inhibition of 5-lipoxygenase,Activation of phospholipase A2,Selective COX-2 inhibition,2'
+    ];
+    return rows.join("\r\n") + "\r\n";
+  }
+
+  /* ---------- Events ---------- */
+  el("fileInput").addEventListener("change", function(e){ handleFile(e.target.files[0]); });
+  var dz = el("dropZone");
+  dz.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); el("fileInput").click(); } });
+  ["dragenter","dragover"].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.add("drag"); }); });
+  ["dragleave","drop"].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.remove("drag"); }); });
+  dz.addEventListener("drop", function(e){ var f = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null; if (f) handleFile(f); });
+
+  el("templateBtn").addEventListener("click", function(){ download(templateCsv(), "quiz_template.csv", "text/csv"); });
+  el("submitBtn").addEventListener("click", submitQuiz);
+  el("restoreBtn").addEventListener("click", function(){ //v2.3
+    if(!questions.length){alert( "Load the original CSV first.");return;}
+    try{restoreSaveCode(el("restoreCode").value.trim());show("quizScreen");}
+    catch(err){alert(err.message);}
+  });
+  el("restoreCode").addEventListener("input", function(){pendingRestoreCode = this.value.trim();}); //v2.3
+  el("startQuizBtn").addEventListener("click",startQuiz); //v2.3
+  el("downloadFuBtn").addEventListener("click", function(){ download(buildFollowupMd(), "followup_request_" + mmddyyhh() + ".md", "text/markdown"); });
+  el("fuTemplateBtn").addEventListener("click", function(){ download(buildBlankTemplate(), "followup_request_template.md", "text/markdown"); });
+  el("downloadTxtBtn").addEventListener("click", function(){ download(buildTxtReport(), baseName() + ".txt", "text/plain"); });
+  el("downloadCsvBtn").addEventListener("click", function(){ download(buildMissedCsv(), baseName() + "_missed.csv", "text/csv"); });
+
+  el("retakeBtn").addEventListener("click", function(){
+    // Same set, reshuffled — scrambleAll won't repeat the order just used.
+    if (!questions.length){ show("startScreen"); return; }
+    answers = questions.map(function(){ return null; });
+    lastResults = null;
+    scrambleAll();
+    renderList();
+    show("quizScreen");
+  });
+
+  el("newFileBtn").addEventListener("click", function(){
+    questions = []; answers = []; fileName = ""; sourceText = ""; lastResults = null;
+    el("fileInput").value = "";
+    show("startScreen");
+  });
+
+})();
+</script>
+</body>
+</html>
