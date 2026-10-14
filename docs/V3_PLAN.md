@@ -185,7 +185,10 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
 ---
 
 ## 4. Build phases (tick as done)
-- [ ] **0. Repo:** `git init`, set the repo-local identity from §3, build the history, create `Quiz_Qrusher` on GitHub, push, enable Pages. All Phase 0 decisions are made.
+- [x] **0. Repo:** `git init`, set the repo-local identity from §3, build the history, create `Quiz_Qrusher` on GitHub, push, enable Pages. All Phase 0 decisions are made.
+  - Done 2026-10-14: 8 version commits tagged `v1.0.0`, `v2.0.0`, `v2.1.0` (+`v2.1.1`), `v2.2.0`, `v2.3.0`–`v2.3.3`, then the organized-tree commit. Pushed to `github.com/BraxtonStryker/Quiz_Qrusher`. Repo-local `core.autocrlf=false` (files stay LF).
+  - Stray root files from the earlier reorganization were moved: dev prompts → `prompts/dev/`, old zips → `_archive_local/`, `system_user_guide.pdf` → `docs/guides/`.
+  - [ ] **Pages not enabled yet** (Claude's tool call was blocked). Enable it by hand: repo Settings → Pages → Deploy from branch `main`, folder `/ (root)`. Nothing serves until `index.html` exists (Phase 2).
 - [ ] **1. Folder-access test page** (`test-data/fsa_test.html`). The user opens it **from disk** in Chrome and Edge. It reports:
   - Can it link a folder?
   - Does the handle survive a reload or a browser restart?
