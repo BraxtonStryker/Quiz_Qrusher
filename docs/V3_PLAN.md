@@ -287,4 +287,6 @@ Resolved on 2026-10-14:
 - Lite non-Chrome saving is browser storage plus downloaded JSON (trial).
 - The download prompt fires on Submit, plus an optional interval set in Settings.
 - Lite Apply fallback message: "Delete the old Lite file and put this one in its place, then reopen it and press Reconnect (Chrome/Edge)." Relinking isn't needed (Phase 1). Also warn that the browser may save the file as `... (1).html`.
+- **Save status is just a green ✓** (full app and Lite). "Saved in browser · just now" appears on hover or keyboard focus, and the check carries it as its `aria-label`. Warnings (⚠) always show their full text. (User request, 2026-10-14.)
+- **Tutor mode toggle is an iOS-style switch** inside the dock tab: a vertical "TUTOR MODE" label above a switch that turns green when on. Off = Test mode. (User request, 2026-10-14.)
 - **The Reconnect button must be hard to miss** (full app and Lite): a prominent accent-colored button in the quiz header/status line, plus a banner on Home and on quiz open whenever a linked folder needs permission. Never just a small text link.

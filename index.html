@@ -15,6 +15,7 @@
     --warn:#A76A00; --warn-soft:#FBF1DC;  /*v3.0*/
     --navy:#1F3B73; --navy-soft:#E7EDF8;  /*v2.3.2 flag marker*/
     --on-accent:#FFFFFF;                  /*v3.0*/
+    --knob:#FFFFFF;                       /*v3.0 - toggle switch knob*/
     --radius:12px; --radius-sm:9px;
     --shadow:0 1px 2px rgba(19,26,36,.06), 0 8px 24px rgba(19,26,36,.06);
   }
@@ -28,6 +29,7 @@
       --warn:#E7B04A; --warn-soft:#2B2210;  /*v3.0*/
       --navy:#8FB0E8; --navy-soft:#1A2436;  /*v2.3.2*/
       --on-accent:#FFFFFF;                  /*v3.0*/
+      --knob:#F4F6FA;                       /*v3.0*/
       --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
     }
   }
@@ -133,8 +135,11 @@
   .topbar{position:sticky; top:0; z-index:5; background:var(--bg); padding:10px 0 6px}
   .quizbar{display:flex; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap}  /*v3.0*/
   .quizname{font-weight:650; font-size:15px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .savestat{font-size:12.5px; color:var(--good); font-weight:600}
+  .savestat{font-size:12.5px; color:var(--good); font-weight:600; border-radius:6px; padding:2px 4px; cursor:default; outline-offset:2px}
   .savestat.bad{color:var(--bad)}
+  .savestat .ic{font-size:15px; line-height:1}
+  .savestat .lbl{display:none}                                       /*v3.0 - just a check until hovered or focused*/
+  .savestat:hover .lbl, .savestat:focus .lbl, .savestat.bad .lbl{display:inline}
   .progress{height:5px; background:var(--line); border-radius:999px; overflow:hidden}
   .progress > span{display:block; height:100%; width:0; background:var(--accent); border-radius:999px; transition:width .25s ease}
   .qmeta{display:flex; justify-content:space-between; align-items:center; margin:12px 2px 2px}
@@ -209,7 +214,12 @@
   }
   .notetab:hover{background:var(--surface-2)}
   .docktabs{display:flex; flex-direction:column; gap:8px; align-items:flex-end}  /*v3.0 - mode toggle stacked above Notes*/
-  .notetab.modetab[aria-pressed="true"]{background:var(--accent); color:var(--on-accent); border-color:var(--accent)}
+  .notetab.modetab{writing-mode:horizontal-tb; display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 7px}  /*v3.0 - label + switch*/
+  .modetab .mlabel{writing-mode:vertical-rl}
+  .switch{position:relative; display:block; width:34px; height:20px; border-radius:999px; background:var(--line); transition:background .18s ease}
+  .switch .knob{position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--knob); box-shadow:0 1px 3px rgba(0,0,0,.3); transition:transform .18s ease}
+  .modetab[aria-checked="true"] .switch{background:var(--good)}
+  .modetab[aria-checked="true"] .switch .knob{transform:translateX(14px)}
   .notepanel{
     width:320px; max-width:86vw; max-height:80vh; display:flex; flex-direction:column; gap:10px;
     padding:14px; border-radius:var(--radius) 0 0 var(--radius); border-right:none;
@@ -423,7 +433,7 @@
         <span class="quizname" id="quizName"></span>
         <span class="timer" id="timerDisplay" title="Time spent on this quiz"></span>
         <button class="linkbtn" id="quizHelpBtn" type="button">Help</button>
-        <span class="savestat" id="saveStatus" role="status"></span>
+        <span class="savestat" id="saveStatus" role="status" tabindex="0"></span>
       </div>
       <div class="progress"><span id="progressFill"></span></div>
       <div class="qmeta">
@@ -548,7 +558,9 @@
 <!-- ====== NOTES DOCK (fixed, follows scroll) ====== v2.3.2 -->
 <div id="noteDock" class="hidden">
   <div class="docktabs"> <!--v3.0 - Tutor/Test toggle next to Notes-->
-    <button class="notetab modetab" id="modeToggle" type="button" aria-pressed="false" title="Switch between Test mode and Tutor mode">TEST MODE</button>
+    <button class="notetab modetab" id="modeToggle" type="button" role="switch" aria-checked="false" aria-label="Tutor mode">
+      <span class="mlabel">TUTOR MODE</span><span class="switch" aria-hidden="true"><span class="knob"></span></span>
+    </button>
     <button class="notetab" id="noteToggle" type="button" aria-expanded="false" aria-controls="notePanel">NOTES</button>
   </div>
   <aside class="card notepanel hidden" id="notePanel" aria-label="Notes">
@@ -1034,10 +1046,15 @@
   function renderSaveStatus(){
     var s = el("saveStatus");
     s.classList.remove("bad");
-    if (store && store.kind === "memory"){ s.classList.add("bad"); s.textContent = "⚠ Not saved: this browser blocks storage. Use Export backup."; return; }
-    if (saveError){ s.classList.add("bad"); s.textContent = "⚠ Couldn't save in this browser. Use Export backup."; s.title = String(saveError.message || saveError); return; }
+    var put = function(icon, label){ //v3.0 - the label shows on hover/focus only (always, for warnings)
+      s.innerHTML = '<span class="ic" aria-hidden="true"></span><span class="lbl"></span>';
+      s.firstChild.textContent = icon; s.lastChild.textContent = " " + label;
+      s.setAttribute("aria-label", label);
+    };
+    if (store && store.kind === "memory"){ s.classList.add("bad"); put("⚠", "Not saved: this browser blocks storage. Use Export backup."); return; }
+    if (saveError){ s.classList.add("bad"); put("⚠", "Couldn't save in this browser. Use Export backup."); s.title = String(saveError.message || saveError); return; }
     s.title = "";
-    s.textContent = lastSavedAt ? "✓ Saved in browser · " + ago(lastSavedAt) : "Saves automatically";
+    put("✓", lastSavedAt ? "Saved in browser · " + ago(lastSavedAt) : "Saves automatically in this browser");
   }
 
   /* ---------- Screens ---------- */
@@ -1315,10 +1332,9 @@
     el("qList").classList.toggle("mode-test", !tutor);
     var t = el("modeToggle");
     t.classList.toggle("hidden", !tutorAvailable());
-    t.setAttribute("aria-pressed", tutor ? "true" : "false");
-    t.textContent = tutor ? "TUTOR MODE" : "TEST MODE";
-    t.title = tutor ? "Tutor mode: each question has a Show answer button. Click to switch to Test mode."
-                    : "Test mode. Click to switch to Tutor mode, which adds a Show answer button to each question.";
+    t.setAttribute("aria-checked", tutor ? "true" : "false"); //v3.0 - iOS-style switch; off = Test mode
+    t.title = tutor ? "Tutor mode is on: each question has a Show answer button. Click for Test mode."
+                    : "Test mode. Turn on Tutor mode to add a Show answer button to each question.";
     el("modeLabel").textContent = tutor ? "Tutor mode · revealed questions aren't scored" : "Options shuffled";
   }
   function toggleMode(){

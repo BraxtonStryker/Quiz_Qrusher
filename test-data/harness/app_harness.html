@@ -75,6 +75,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     await sleep(1200);
     check("counter", txt("answeredCounter") === "2 of 25 answered  -  1 flagged", txt("answeredCounter"));
     check("save status", txt("saveStatus").indexOf("Saved in browser") >= 0, txt("saveStatus"));
+    check("save status shows only the check", W.getComputedStyle($("saveStatus").querySelector(".lbl")).display === "none" && $("saveStatus").querySelector(".ic").textContent === "✓" && $("saveStatus").getAttribute("aria-label").indexOf("Saved in browser") === 0);
     const a1 = blocks[0].querySelectorAll("input")[0].value, q1text = blocks[0].querySelector(".qtext").textContent;
 
     // export backup from quiz
@@ -189,10 +190,10 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     btn(rowButtons("bankList").find(r => r.title === "qus_input_5"), "Start").click(); await sleep(400);
     check("p3 quiz of 5", visible("quizScreen") && D.querySelectorAll(".qblock").length === 5);
     check("p3 timer shown", /^⏱ \d+:\d\d$/.test(txt("timerDisplay")) && visible("timerDisplay"), txt("timerDisplay"));
-    check("p3 starts in test mode", txt("modeToggle") === "TEST MODE" && $("qList").classList.contains("mode-test"));
+    check("p3 starts in test mode", $("modeToggle").getAttribute("aria-checked") === "false" && $("qList").classList.contains("mode-test"));
     check("p3 reveal hidden in test", W.getComputedStyle(D.querySelector(".qreveal")).display === "none");
     click("modeToggle"); await sleep(100);
-    check("p3 tutor mode on", txt("modeToggle") === "TUTOR MODE" && $("modeToggle").getAttribute("aria-pressed") === "true" && !$("qList").classList.contains("mode-test") && W.getComputedStyle(D.querySelector(".qreveal")).display !== "none");
+    check("p3 tutor mode on", $("modeToggle").getAttribute("aria-checked") === "true" && !$("qList").classList.contains("mode-test") && W.getComputedStyle(D.querySelector(".qreveal")).display !== "none");
     let qb = D.querySelectorAll(".qblock");
     // Q1: reveal without answering -> not scored
     qb[0].querySelector(".qreveal").click(); await sleep(100);
@@ -210,7 +211,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("p3 counter mix", txt("answeredCounter") === "2 of 5 answered  -  1 revealed  -  1 flagged", txt("answeredCounter"));
     check("p3 unanswered note excludes revealed", txt("unansweredNote") === "2 questions still unanswered.", txt("unansweredNote"));
     click("modeToggle"); await sleep(100);
-    check("p3 back to test keeps reveals", txt("modeToggle") === "TEST MODE" && qb[0].classList.contains("revealed") && W.getComputedStyle(qb[2].querySelector(".qreveal")).display === "none");
+    check("p3 back to test keeps reveals", $("modeToggle").getAttribute("aria-checked") === "false" && qb[0].classList.contains("revealed") && W.getComputedStyle(qb[2].querySelector(".qreveal")).display === "none");
     // Help from the quiz, then back
     click("quizHelpBtn"); await sleep(200);
     check("p3 help from quiz", visible("helpScreen") && visible("helpBackBar"));
