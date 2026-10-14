@@ -167,7 +167,7 @@
       <div id="startError" class="err hidden" role="alert"></div>
 
       <div class="startfoot">
-        <button class="linkbtn" id="templateBtn" type="button">Download a blank CSV template</button>
+        <button class="linkbtn" id="templateBtn" type="button">Download an example CSV</button>
         <span class="muted" style="font-size:13px" id="loadedInfo"></span>
       </div>
     </div>
@@ -248,47 +248,88 @@
 
   var el = function(id){ return document.getElementById(id); };
 
-  /* ---------- CSV parsing (quotes, embedded commas/newlines, "" escapes) ---------- */
+  /* ---------- CSV parsing (lenient: fields may be quoted or unquoted) ----------
+     A field counts as quoted only when a '"' is its first non-blank character, so
+     stray quotes inside unquoted data (e.g. 5'3" or a "logic high") stay literal
+     instead of hijacking the parser. Inside a quoted field, a lone '"' closes it
+     only when followed by a comma / newline / EOF; otherwise it's treated as a
+     literal inner quote, so both ""escaped"" and un-escaped inner quotes survive.
+     Embedded commas and newlines inside quotes, CRLF/CR endings, and a BOM are
+     all handled. */
   function parseCSV(text){
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-    var rows = [], row = [], field = "", inQ = false, i = 0, c;
-    while (i < text.length){
-      c = text[i];
-      if (inQ){
-        if (c === '"'){ if (text[i+1] === '"'){ field += '"'; i += 2; continue; } inQ = false; i++; continue; }
-        field += c; i++; continue;
+    text = text.replace(/\r\n?/g, "\n");                              // normalize CRLF / lone CR
+    var rows = [], row = [], i = 0, n = text.length;
+    while (i < n){
+      // ----- read ONE field starting at i -----
+      var field = "", j = i;
+      while (j < n && (text[j] === ' ' || text[j] === '\t')) j++;     // peek past leading blanks
+      if (j < n && text[j] === '"'){
+        i = j + 1;                                                    // quoted field (blanks before quote ok)
+        while (i < n){
+          var c = text[i];
+          if (c === '"'){
+            if (text[i+1] === '"'){ field += '"'; i += 2; continue; } // "" -> literal "
+            var k = i + 1;                                            // is this the closing quote?
+            while (k < n && (text[k] === ' ' || text[k] === '\t')) k++;
+            if (k >= n || text[k] === ',' || text[k] === '\n'){ i++; break; }
+            field += '"'; i++; continue;                             // un-escaped inner quote -> literal
+          }
+          field += c; i++;
+        }
+        while (i < n && text[i] !== ',' && text[i] !== '\n') i++;     // drop blanks after closing quote
+      } else {
+        while (i < n && text[i] !== ',' && text[i] !== '\n'){ field += text[i]; i++; } // unquoted: quotes literal
       }
-      if (c === '"'){ inQ = true; i++; continue; }
-      if (c === ','){ row.push(field); field = ""; i++; continue; }
-      if (c === '\r'){ i++; continue; }
-      if (c === '\n'){ row.push(field); rows.push(row); row = []; field = ""; i++; continue; }
-      field += c; i++;
+      row.push(field);
+      // ----- terminator -----
+      if (i < n && text[i] === ','){ i++; continue; }                 // next field, same row
+      if (i < n && text[i] === '\n'){ rows.push(row); row = []; i++; continue; }
+      rows.push(row); row = []; break;                                // EOF ends the last row
     }
-    if (field.length > 0 || row.length > 0){ row.push(field); rows.push(row); }
     return rows.filter(function(r){ return r.some(function(v){ return v.trim() !== ""; }); });
   }
 
-  function norm(s){ return String(s || "").trim().toLowerCase().replace(/[\s_]+/g, ""); }
+  // Normalize a header cell for matching: drop "(1-6)" / "[1-6]" style annotations,
+  // lowercase, then strip spaces, underscores, hyphens and other punctuation. So
+  // "Correct_Option_Number (1-6)", "Correct Option Number", etc. all reduce to
+  // "correctoptionnumber".
+  function norm(s){
+    return String(s == null ? "" : s)
+      .replace(/[\(\[\{][^)\]\}]*[\)\]\}]?/g, " ")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "");
+  }
   function headerIndex(headerRow){ var m = {}; headerRow.forEach(function(h, i){ m[norm(h)] = i; }); return m; }
+  // Resolve a required column tolerantly: exact normalized match first, then a
+  // header that merely starts with the canonical key (covers a trailing
+  // annotation that wasn't in brackets, e.g. "Correct Option Number 1 to 6").
+  function findCol(h, key){
+    if (key in h) return h[key];
+    var keys = Object.keys(h);
+    for (var i = 0; i < keys.length; i++){ if (keys[i].indexOf(key) === 0) return h[keys[i]]; }
+    return undefined;
+  }
 
   function buildQuestions(rows){
     if (rows.length < 2) throw new Error("The file needs a header row and at least one question.");
     var h = headerIndex(rows[0]);
-    if (!("category" in h) || !("questiontext" in h) || !("correctoptionnumber" in h)){
+    var catCol = findCol(h, "category"), qCol = findCol(h, "questiontext"), ansCol = findCol(h, "correctoptionnumber");
+    if (catCol == null || qCol == null || ansCol == null){
       throw new Error("Missing required columns. Expected Category, Question_Text and Correct_Option_Number.");
     }
-    var optCols = []; for (var n = 1; n <= 6; n++){ optCols.push(h["option" + n]); }
+    var optCols = []; for (var n = 1; n <= 6; n++){ optCols.push(findCol(h, "option" + n)); }
     var out = [];
     for (var r = 1; r < rows.length; r++){
       var row = rows[r];
       var get = function(idx){ return (idx == null || idx >= row.length) ? "" : String(row[idx]).trim(); };
-      var qtext = get(h["questiontext"]); if (!qtext) continue;
+      var qtext = get(qCol); if (!qtext) continue;
       var options = [];
       for (var k = 0; k < 6; k++){ var t = get(optCols[k]); if (t !== "") options.push({ n: k + 1, text: t }); }
       if (options.length < 2) continue;
-      var correct = parseInt(get(h["correctoptionnumber"]), 10);
+      var correct = parseInt(get(ansCol), 10);
       if (!options.some(function(o){ return o.n === correct; })) continue;
-      out.push({ category: get(h["category"]) || "Uncategorized", text: qtext, options: options, correct: correct });
+      out.push({ category: get(catCol) || "Uncategorized", text: qtext, options: options, correct: correct });
     }
     if (out.length === 0) throw new Error("No valid questions found. Check that each row has a question, at least two options, and a correct option number.");
     return out;
