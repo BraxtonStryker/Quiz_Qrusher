@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quiz Qrusher v2.3.2</title>
+<title>Quiz Qrusher v2.3.3</title>
 <style>
   :root{
     --bg:#EEF1F5; --surface:#FFFFFF; --surface-2:#F6F8FB;
@@ -69,6 +69,10 @@
   .drop .glyph{width:44px; height:44px; border-radius:11px; display:grid; place-items:center; background:var(--accent-soft); color:var(--accent)}
   .drop .glyph svg{width:22px; height:22px}
   .filehint{font-size:14px; color:var(--muted)}
+  .drop.sm{padding:22px 20px; gap:10px}                              /*v2.3.3 - resume-file drop zone*/
+  .drop.sm .glyph{width:36px; height:36px; border-radius:9px}
+  .drop.sm .glyph svg{width:18px; height:18px}
+  .savebar{display:flex; align-items:center; gap:12px; flex-wrap:wrap} /*v2.3.3*/
   .startfoot{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:22px}
   .linkbtn{background:none; border:none; color:var(--accent); font-size:14px; font-weight:600; padding:6px 2px; text-decoration:underline; text-underline-offset:3px}
   .err{margin-top:16px; padding:12px 14px; border-radius:var(--radius-sm); background:var(--bad-soft); color:var(--bad); font-size:14px; border:1px solid color-mix(in srgb, var(--bad) 25%, transparent)}
@@ -193,7 +197,7 @@
   <!-- ====== START ====== -->
   <section id="startScreen">
     <div class="card hero">
-      <h1>Quiz Qrusher v2.3.2</h1>
+      <h1>Quiz Qrusher v2.3.3</h1>
       <p class="lede">Load a CSV of questions, take the quiz offline, and get a graded report that flags your weak categories. Option and question order is reshuffled on every attempt.</p>
 
       <label class="drop" id="dropZone" for="fileInput" tabindex="0" role="button" aria-label="Choose a CSV file">
@@ -209,12 +213,22 @@
 
       <div id="startError" class="err hidden" role="alert"></div>
 
-      <div id="restoreSection" style="margin-top:20px"> <!--v2.3-->
-        <textarea id="restoreCode" placeholder="Optional: Paste a Resume Code here from a previous session" style="width:100%;height:30px;font-family:monospace;"></textarea>
-        
+      <div id="restoreSection" style="margin-top:20px"> <!--v2.3.3 - drop a saved .txt instead of pasting a code-->
+        <label class="drop sm" id="resumeDrop" for="resumeInput" tabindex="0" role="button" aria-label="Choose a saved progress file">
+          <span class="glyph" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 4v12M12 16l-4-4M12 16l4-4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+            </svg>
+          </span>
+          <div id="resumeStatus"><strong>Optional: choose a saved progress file</strong> or drop it here</div>
+          <span class="filehint">The .txt file Quiz Qrusher saved during a previous session</span>
+        </label>
+        <input type="file" id="resumeInput" accept=".txt,text/plain" class="hidden">
+        <button class="linkbtn hidden" id="resumeClearBtn" type="button">Clear saved progress file</button>
+
         <p class="muted" style="font-size:13px">
           Load the CSV first.
-          If resuming a quiz, paste the Resume Code.
+          If resuming a quiz, drop in the saved .txt file.
           Then click Start Quiz.
         </p>
       </div>
@@ -257,16 +271,18 @@
 
     <div id="qList"></div>
 
-  <!-- Resume / Save Code -->
+  <!-- Save progress -->                                            <!--v2.3.3-->
     <div class="card" style="margin-top:20px;padding:16px">
       <div style="font-weight:600">
-        Resume Code
+        Save progress
       </div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
-        Copy this code to continue later.
+        Download a .txt file, then drop it on the start screen to continue later.
       </div>
-      <textarea id="saveCode" readonly style="width:100%;height:90px;font-family:monospace;">
-      </textarea>
+      <div class="savebar">
+        <button class="btn" id="saveFileBtn" type="button">Save progress to file</button>
+        <span class="muted" style="font-size:13px" id="saveFileStatus"></span>
+      </div>
     </div>
     <div class="endbar card">
         <span class="muted" id="unansweredNote"></span>
@@ -343,6 +359,7 @@
   var scrambleTick = 0;   // monotonic, so successive scrambles differ regardless of the clock
   var loadedQuestions = []; // untouched copy used when Start Quiz is clicked
   var pendingRestoreCode = "";
+  var resumeFileName = "";   // name of the dropped saved-progress .txt //v2.3.3
   var notesText = "";       // notebox contents, carried in the save code //v2.3.2
 
   var el = function(id){ return document.getElementById(id); };
@@ -597,7 +614,7 @@ function restoreSaveCode(code){//v2.3
 
   function updateStartControls(){
     var hasCsv = loadedQuestions.length > 0;
-    var hasCode = el("restoreCode").value.trim().length > 0;
+    var hasCode = pendingRestoreCode.length > 0; //v2.3.3
     el("startQuizBtn").disabled = !hasCsv;
     el("restoreBtn").disabled = !(hasCsv && hasCode);
   }
@@ -637,6 +654,52 @@ function restoreSaveCode(code){//v2.3
     show("startScreen");
   }
 
+  function setResumeStatus(loaded, name){ //v2.3.3
+    var dz = el("resumeDrop"), status = el("resumeStatus");
+    dz.classList.toggle("loaded", loaded);
+    el("resumeClearBtn").classList.toggle("hidden", !loaded);
+    if (loaded){
+      status.textContent = "Saved progress ready: " + (name || "saved_state.txt");
+      dz.setAttribute("aria-label", "Saved progress file loaded: " + (name || "saved_state.txt") + ". Choose a different file");
+    } else {
+      status.innerHTML = "<strong>Optional: choose a saved progress file</strong> or drop it here";
+      dz.setAttribute("aria-label", "Choose a saved progress file");
+    }
+  }
+
+  function clearResumeFile(){ //v2.3.3
+    pendingRestoreCode = ""; resumeFileName = "";
+    el("resumeInput").value = "";
+    setResumeStatus(false);
+    updateStartControls();
+  }
+
+  function handleResumeFile(file){ //v2.3.3
+    if (!file) return;
+    var startErr = el("startError");
+    var reader = new FileReader();
+    reader.onload = function(){
+      var text = String(reader.result);
+      try { decodeSaveCode(text); }            // reject junk before Start Quiz is armed
+      catch (err){
+        clearResumeFile();
+        startErr.textContent = "That file does not contain a valid resume code.";
+        startErr.classList.remove("hidden");
+        return;
+      }
+      startErr.classList.add("hidden");
+      pendingRestoreCode = text; resumeFileName = file.name;
+      setResumeStatus(true, file.name);
+      updateStartControls();
+    };
+    reader.onerror = function(){
+      clearResumeFile();
+      startErr.textContent = "Could not read that file. Try choosing it again.";
+      startErr.classList.remove("hidden");
+    };
+    reader.readAsText(file);
+  }
+
   function handleFile(file){
     if (!file) return;
     var reader = new FileReader();
@@ -648,9 +711,10 @@ function restoreSaveCode(code){//v2.3
   function startQuiz(){ //v2.3
     if (!loadedQuestions.length) return;
     var startErr = el("startError"); startErr.classList.add("hidden");
+    el("saveFileStatus").textContent = ""; //v2.3.3
     questions = JSON.parse(JSON.stringify(loadedQuestions));
     answers = questions.map(function(){ return null; });
-    var code = el("restoreCode").value.trim(); //v2.3.2 - resume instead of restarting
+    var code = pendingRestoreCode; //v2.3.3 - resume from the dropped .txt instead of restarting
     if (code){
       try { restoreSaveCode(code); }
       catch (err){ startErr.textContent = err.message; startErr.classList.remove("hidden"); return; }
@@ -740,19 +804,25 @@ function restoreSaveCode(code){//v2.3
     el("unansweredNote").textContent = un === 0 ? "All questions answered." : (un + (un === 1 ? " question" : " questions") + " still unanswered.");
   }
 
-  function updateSaveCode(){ //v2.3
+  // v2.3.3 - the code lives in the downloaded .txt now, so this only retires a
+  // stale "Downloaded ..." note once the state it described has moved on.
+  function updateSaveCode(){
     if(!questions.length) return;
-    var box = el("saveCode");
-    if(box)
-      box.value =
-        generateSaveCode();
+    var note = el("saveFileStatus");
+    if(note) note.textContent = "";
   }
 
   /* ---------- Submit ---------- */
+  function qty(n, word){ return n + " " + word + (n === 1 ? "" : "s"); }
+
   function submitQuiz(){
     var un = answers.filter(function(a){ return a === null; }).length;
-    if (un > 0){
-      var msg = un === 1 ? "1 question is still unanswered. Submit anyway?" : un + " questions are still unanswered. Submit anyway?";
+    var flagged = questions.filter(function(q){ return q.flagged; }).length; // warn about flags too
+    if (un > 0 || flagged > 0){
+      var parts = [];
+      if (un > 0) parts.push(qty(un, "question") + " still unanswered");
+      if (flagged > 0) parts.push(qty(flagged, "question") + " still flagged for review");
+      var msg = "You have " + parts.join(" and ") + "." + "\n\n" + "Submit anyway?";
       if (!window.confirm(msg)) return;
     }
     renderResults();
@@ -1005,10 +1075,22 @@ function restoreSaveCode(code){//v2.3
   el("templateBtn").addEventListener("click", function(){ download(templateCsv(), "quiz_template.csv", "text/csv"); });
   el("submitBtn").addEventListener("click", submitQuiz);
   el("restoreBtn").addEventListener("click", startQuiz); //v2.3.2 - same path as Start Quiz, which resumes when a code is pasted
-  el("restoreCode").addEventListener("input", function(){
-    pendingRestoreCode = this.value.trim();
-    updateStartControls();
-  }); //v2.3
+
+  /* saved-progress .txt drop zone */ //v2.3.3
+  el("resumeInput").addEventListener("change", function(e){ handleResumeFile(e.target.files[0]); });
+  var rz = el("resumeDrop");
+  rz.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); el("resumeInput").click(); } });
+  ["dragenter","dragover"].forEach(function(ev){ rz.addEventListener(ev, function(e){ e.preventDefault(); rz.classList.add("drag"); }); });
+  ["dragleave","drop"].forEach(function(ev){ rz.addEventListener(ev, function(e){ e.preventDefault(); rz.classList.remove("drag"); }); });
+  rz.addEventListener("drop", function(e){ var f = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null; if (f) handleResumeFile(f); });
+  el("resumeClearBtn").addEventListener("click", function(e){ e.preventDefault(); clearResumeFile(); });
+
+  el("saveFileBtn").addEventListener("click", function(){ //v2.3.3 - replaces the resume-code copy box
+    if (!questions.length) return;
+    var name = stateFileName();
+    download(buildStateTxt(), name, "text/plain");
+    el("saveFileStatus").textContent = "Downloaded " + name;
+  });
   el("startQuizBtn").addEventListener("click",startQuiz); //v2.3
 
   el("noteToggle").addEventListener("click", function(){ setNotesOpen(true); });   //v2.3.2
@@ -1040,10 +1122,10 @@ function restoreSaveCode(code){//v2.3
 
   el("newFileBtn").addEventListener("click", function(){
     questions = []; loadedQuestions = []; answers = []; fileName = ""; sourceText = ""; lastResults = null;
-    pendingRestoreCode = "";
     notesText = ""; el("noteText").value = ""; noteHint(); setNotesOpen(false); //v2.3.2
     el("fileInput").value = "";
-    el("restoreCode").value = "";
+    clearResumeFile(); //v2.3.3
+    el("saveFileStatus").textContent = "";
     setFileStatus(false);
     updateStartControls();
     show("startScreen");
