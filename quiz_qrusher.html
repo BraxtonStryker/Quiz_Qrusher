@@ -61,6 +61,9 @@
     background:var(--surface-2); transition:border-color .15s ease, background .15s ease; cursor:pointer;
   }
   .drop.drag{border-color:var(--accent); background:var(--accent-soft)}
+  .drop.loaded{border-color:var(--good); background:var(--good-soft)}
+  .drop.loaded .glyph{background:var(--good-soft); color:var(--good)}
+  .drop.loaded .filehint{color:var(--good)}
   .drop .glyph{width:44px; height:44px; border-radius:11px; display:grid; place-items:center; background:var(--accent-soft); color:var(--accent)}
   .drop .glyph svg{width:22px; height:22px}
   .filehint{font-size:14px; color:var(--muted)}
@@ -159,7 +162,7 @@
             <path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
           </svg>
         </span>
-        <div><strong>Choose a CSV file</strong> or drop it here</div>
+        <div id="fileStatus"><strong>Choose a CSV file</strong> or drop it here</div>
         <span class="filehint">Headers: Category, Question_Text, Option_1&hellip;Option_6, Correct_Option_Number</span>
       </label>
       <input type="file" id="fileInput" accept=".csv,text/csv" class="hidden">
@@ -179,7 +182,7 @@
 
       <div class="startfoot">
         <button class="btn" id="startQuizBtn" type="button" disabled> Start Quiz </button>
-        <button class="btn" id="restoreBtn" type="button">Restore Saved Attempt</button>
+        <button class="btn" id="restoreBtn" type="button" disabled>Restore Saved Attempt</button>
         <button class="linkbtn" id="templateBtn" type="button">Download an example CSV</button>
         <span class="muted" style="font-size:13px" id="loadedInfo"></span>
       </div>
@@ -285,6 +288,8 @@
   var lastResults = null;
   var memoryLastSig = {}; // in-memory fallback for non-repeat guarantee
   var scrambleTick = 0;   // monotonic, so successive scrambles differ regardless of the clock
+  var loadedQuestions = []; // untouched copy used when Start Quiz is clicked
+  var pendingRestoreCode = "";
 
   var el = function(id){ return document.getElementById(id); };
 
@@ -414,6 +419,8 @@
   //   try { localStorage.setItem(storeKey, sig); } catch (e) {}
   // }
 
+  function scrambleQuestions(rnd){ questions = shuffle(questions, rnd); }//v2.3.1
+
   function scrambleAll(){//v2.2
   var key = String(hashStr(sourceText));
   var storeKey = "quizQrusher:lastorder:" + key;
@@ -513,10 +520,34 @@ function restoreSaveCode(code){//v2.3
     window.scrollTo(0, 0);
   }
 
+  function updateStartControls(){
+    var hasCsv = loadedQuestions.length > 0;
+    var hasCode = el("restoreCode").value.trim().length > 0;
+    el("startQuizBtn").disabled = !hasCsv;
+    el("restoreBtn").disabled = !(hasCsv && hasCode);
+  }
+  function setFileStatus(loaded, name, count){
+    var dz = el("dropZone");
+    var status = el("fileStatus");
+    dz.classList.toggle("loaded", loaded);
+    if (loaded){
+      status.textContent = "CSV ready: " + (name || "quiz.csv");
+      el("loadedInfo").textContent = count + (count === 1 ? " question loaded." : " questions loaded.");
+      dz.setAttribute("aria-label", "CSV file loaded: " + (name || "quiz.csv") + ". Choose a different CSV file");
+    } else {
+      status.innerHTML = "<strong>Choose a CSV file</strong> or drop it here";
+      el("loadedInfo").textContent = "";
+      dz.setAttribute("aria-label", "Choose a CSV file");
+    }
+  }
   function loadText(text, name){
     var startErr = el("startError"); startErr.classList.add("hidden");
     try { sourceText = text; questions = buildQuestions(parseCSV(text)); }
-    catch (e){ startErr.textContent = e.message; startErr.classList.remove("hidden"); return; }
+    catch (e){
+      sourceText = ""; questions = []; loadedQuestions = [];
+      setFileStatus(false); updateStartControls();
+      startErr.textContent = e.message; startErr.classList.remove("hidden"); return;
+    }
     // fileName = name || "quiz";          // removed in v2.3
     // answers = questions.map(function(){ return null; });
     // scrambleAll();
@@ -526,8 +557,8 @@ function restoreSaveCode(code){//v2.3
     fileName = name || "quiz"; //v2.3
     loadedQuestions = JSON.parse(JSON.stringify(questions));
     answers = questions.map(function(){return null;});
-    el("startQuizBtn").disabled = false;
-    el("loadedInfo").textContent = questions.length +" questions loaded.";
+    setFileStatus(true, fileName, questions.length); //v2.3.1
+    updateStartControls(); //v2.3.1
     show("startScreen");
   }
 
@@ -540,16 +571,12 @@ function restoreSaveCode(code){//v2.3
   }
 
   function startQuiz(){ //v2.3
+    if (!loadedQuestions.length) return;
     questions = JSON.parse(JSON.stringify(loadedQuestions));
-    answers = questions.map(function(){ return null;});
-    if(pendingRestoreCode){
-      try{restoreSaveCode(pendingRestoreCode);}
-      catch(err){alert(err.message);return;}
-    } else {
-      scrambleAll();
-      renderList();
-      updateSaveCode();
-    }
+    answers = questions.map(function(){ return null; });
+    scrambleAll();
+    renderList();
+    updateSaveCode();
     show("quizScreen");
   }
 
@@ -834,11 +861,16 @@ function restoreSaveCode(code){//v2.3
   el("templateBtn").addEventListener("click", function(){ download(templateCsv(), "quiz_template.csv", "text/csv"); });
   el("submitBtn").addEventListener("click", submitQuiz);
   el("restoreBtn").addEventListener("click", function(){ //v2.3
-    if(!questions.length){alert( "Load the original CSV first.");return;}
+    if (!loadedQuestions.length || !el("restoreCode").value.trim()) return;
+    questions = JSON.parse(JSON.stringify(loadedQuestions));
+    answers = questions.map(function(){ return null; });
     try{restoreSaveCode(el("restoreCode").value.trim());show("quizScreen");}
     catch(err){alert(err.message);}
   });
-  el("restoreCode").addEventListener("input", function(){pendingRestoreCode = this.value.trim();}); //v2.3
+  el("restoreCode").addEventListener("input", function(){
+    pendingRestoreCode = this.value.trim();
+    updateStartControls();
+  }); //v2.3
   el("startQuizBtn").addEventListener("click",startQuiz); //v2.3
   el("downloadFuBtn").addEventListener("click", function(){ download(buildFollowupMd(), "followup_request_" + mmddyyhh() + ".md", "text/markdown"); });
   el("fuTemplateBtn").addEventListener("click", function(){ download(buildBlankTemplate(), "followup_request_template.md", "text/markdown"); });
@@ -856,8 +888,12 @@ function restoreSaveCode(code){//v2.3
   });
 
   el("newFileBtn").addEventListener("click", function(){
-    questions = []; answers = []; fileName = ""; sourceText = ""; lastResults = null;
+    questions = []; loadedQuestions = []; answers = []; fileName = ""; sourceText = ""; lastResults = null;
+    pendingRestoreCode = "";
     el("fileInput").value = "";
+    el("restoreCode").value = "";
+    setFileStatus(false);
+    updateStartControls();
     show("startScreen");
   });
 
