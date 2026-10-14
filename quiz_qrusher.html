@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quiz Runner</title>
+<title>Quiz Qrusher</title>
 <style>
   :root{
     --bg:#EEF1F5; --surface:#FFFFFF; --surface-2:#F6F8FB;
@@ -150,7 +150,7 @@
   <!-- ====== START ====== -->
   <section id="startScreen">
     <div class="card hero">
-      <h1>Quiz Runner</h1>
+      <h1>Quiz Qrusher</h1>
       <p class="lede">Load a CSV of questions, take the quiz offline, and get a graded report that flags your weak categories. Option order is reshuffled on every attempt.</p>
 
       <label class="drop" id="dropZone" for="fileInput" tabindex="0" role="button" aria-label="Choose a CSV file">
@@ -351,7 +351,7 @@
   // and q.correct is the ORIGINAL number, so any permutation is safe.
   function scrambleAll(){
     var key = String(hashStr(sourceText));
-    var storeKey = "quizrunner:lastorder:" + key;
+    var storeKey = "quizQrusher:lastorder:" + key;
     var prevSig = memoryLastSig[key];
     try { var stored = localStorage.getItem(storeKey); if (stored != null) prevSig = stored; } catch (e) {}
 
