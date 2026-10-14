@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>harness</title></head>
+<!--v3.0 - regression harness for index.html (Phase 2+). Drives the app in an iframe and POSTs its log to /log.
+  Needs the private fixtures in test-data/csv/ (gitignored). Run from the repo root:
+    python -I test-data/harness/logserver.py . result.txt
+    chrome --headless=new --user-data-dir=<fresh temp dir> --remote-debugging-port=9333 http://127.0.0.1:8767/test-data/harness/app_harness.html
+  then read result.txt. Use real time (not --virtual-time-budget): virtual time outruns FileReader.
+  ?src=<page> loads a different app page, e.g. a copy with indexedDB removed to test the localStorage fallback.-->
+
+<body>
+<pre id="log">start</pre>
+<iframe id="f" src="" style="width:1000px;height:800px"></iframe>
+<script>
+const log = (s) => { document.getElementById("log").textContent += "\n" + s; };
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+let W, D, pass = 0, fail = 0;
+const captured = [];
+function check(name, cond, extra) { if (cond) { pass++; log("PASS " + name); } else { fail++; log("FAIL " + name + (extra !== undefined ? "  :: " + extra : "")); } }
+const $ = (id) => D.getElementById(id);
+const visible = (id) => !$(id).classList.contains("hidden");
+const txt = (id) => $(id).textContent.trim();
+async function setFile(inputId, name, text, type) {
+  const dt = new W.DataTransfer();
+  dt.items.add(new W.File([text], name, { type: type || "text/plain" }));
+  const inp = $(inputId); inp.files = dt.files;
+  inp.dispatchEvent(new W.Event("change", { bubbles: true }));
+  await sleep(400);
+}
+async function getText(url) { return (await fetch(url)).text(); }
+function click(elOrId) { (typeof elOrId === "string" ? $(elOrId) : elOrId).click(); }
+function rowButtons(listId) { return [...$(listId).querySelectorAll(".row")].map(r => ({ title: r.querySelector(".rowtitle").textContent, meta: r.querySelector(".rowmeta").textContent, btns: [...r.querySelectorAll("button")] })); }
+function btn(row, label) { return row.btns.find(b => b.textContent === label); }
+
+document.getElementById("f").src = new URLSearchParams(location.search).get("src") || "../../index.html";
+(async function () {
+  try {
+    await new Promise(r => document.getElementById("f").addEventListener("load", r));
+    W = document.getElementById("f").contentWindow; D = W.document;
+    W.confirm = () => true; W.alert = (m) => log("ALERT " + m); W.prompt = () => "Renamed Bank";
+    // capture downloads
+    W.HTMLAnchorElement.prototype.click = function () { const a = this; captured.push({ name: a.download, href: a.href }); };
+    await sleep(6500); // IndexedDB hangs in headless -> 5 s timeout -> localStorage fallback
+
+    check("home visible", visible("homeScreen"));
+    log("storage banner: " + (visible("storageBanner") ? txt("storageBanner") : "(hidden: indexeddb)"));
+    check("tile start sub default", txt("tileStartSub") === "Load a question CSV", txt("tileStartSub"));
+
+    // ---- Start new quiz from CSV
+    click(D.querySelector('.tile[data-go="start"]')); await sleep(200);
+    check("start screen", visible("startScreen"));
+    check("start btn disabled", $("startQuizBtn").disabled);
+    const csv25 = await getText("../csv/qus_input_25.csv");
+    await setFile("fileInput", "qus_input_25.csv", csv25, "text/csv");
+    check("csv ready status", txt("fileStatus").indexOf("CSV ready") === 0, txt("fileStatus"));
+    check("start btn enabled", !$("startQuizBtn").disabled);
+    check("bank listed", rowButtons("bankList").length === 1 && rowButtons("bankList")[0].meta.indexOf("25 questions") === 0, rowButtons("bankList").map(r => r.meta).join("|"));
+    // load the same CSV again: no duplicate bank
+    await setFile("fileInput", "copy.csv", csv25, "text/csv");
+    check("no duplicate bank", rowButtons("bankList").length === 1);
+    // bad csv
+    await setFile("fileInput", "bad.csv", "a,b\n1,2", "text/csv");
+    check("bad csv error", visible("startError") && txt("startError").indexOf("Missing required columns") === 0, txt("startError"));
+    await setFile("fileInput", "qus_input_25.csv", csv25, "text/csv");
+    click("startQuizBtn"); await sleep(300);
+    check("quiz screen", visible("quizScreen"));
+    check("25 questions rendered", D.querySelectorAll(".qblock").length === 25);
+    check("quiz name", txt("quizName") === "qus_input_25", txt("quizName"));
+    check("notes dock visible", visible("noteDock"));
+    // answer Q1, Q2; flag Q3; notes
+    const blocks = D.querySelectorAll(".qblock");
+    blocks[0].querySelectorAll("input")[0].click();
+    blocks[1].querySelectorAll("input")[2].click();
+    blocks[2].querySelector(".qflagbtn").click();
+    $("noteText").value = "my notes ü ✓"; $("noteText").dispatchEvent(new W.Event("input", { bubbles: true }));
+    await sleep(1200);
+    check("counter", txt("answeredCounter") === "2 of 25 answered  -  1 flagged", txt("answeredCounter"));
+    check("save status", txt("saveStatus").indexOf("Saved in browser") >= 0, txt("saveStatus"));
+    const a1 = blocks[0].querySelectorAll("input")[0].value, q1text = blocks[0].querySelector(".qtext").textContent;
+
+    // export backup from quiz
+    click("exportBtn"); await sleep(300);
+    const exp = captured[captured.length - 1];
+    check("export name", /^qus_input_25_progress_\d{8}\.json$/.test(exp.name), exp.name);
+    const expJson = JSON.parse(await (await fetch(exp.href)).text());
+    check("export format", expJson.format === "quiz-qrusher-save" && expJson.version === 3 && expJson.app === "3.0");
+    check("export embeds csv", expJson.bank.csvText === csv25 && expJson.bank.csvHash === 634952293, expJson.bank.csvHash);
+    check("export attempt fields", expJson.attempt.answers.filter(x => x !== null).length === 2 && expJson.attempt.flags[2] === 1 && expJson.attempt.notes === "my notes ü ✓" && expJson.attempt.revealed.length === 25 && !("bankId" in expJson.attempt));
+    const expText = await (await fetch(exp.href)).text();
+
+    // ---- Home -> Resume
+    click(D.querySelector('.quizbar [data-go="home"]')); await sleep(400);
+    check("home resume count", txt("tileResumeSub") === "1 quiz in progress", txt("tileResumeSub"));
+    check("home bank count", txt("tileStartSub") === "1 question bank saved", txt("tileStartSub"));
+    click(D.querySelector('.tile[data-go="resume"]')); await sleep(400);
+    let rows = rowButtons("resumeList");
+    check("resume row", rows.length === 1 && rows[0].meta.indexOf("2 of 25 answered · 1 flagged") === 0, rows.map(r => r.meta).join("|"));
+    btn(rows[0], "Resume").click(); await sleep(300);
+    const b2 = D.querySelectorAll(".qblock");
+    check("resumed same order", b2[0].querySelector(".qtext").textContent === q1text);
+    check("resumed answer", b2[0].querySelectorAll("input")[0].checked && b2[0].querySelectorAll("input")[0].value === a1);
+    check("resumed flag", b2[2].classList.contains("flagged"));
+    check("resumed notes", $("noteText").value === "my notes ü ✓");
+
+    // ---- Submit
+    click("submitBtn"); await sleep(400);
+    check("results screen", visible("resultsScreen"));
+    check("score frac", /^\d+ of 25 correct$/.test(txt("scoreFrac")), txt("scoreFrac"));
+    check("score where", txt("scoreWhere").indexOf("qus_input_25 · submitted") === 0, txt("scoreWhere"));
+    const scoreFrac = txt("scoreFrac");
+    click("downloadTxtBtn"); click("downloadCsvBtn"); click("downloadFuBtn"); await sleep(200);
+    const names = captured.slice(-3).map(c => c.name);
+    check("report downloads", names[0] === "qus_input_25_report.txt" && names[1] === "qus_input_25_report_missed.csv" && /^followup_request_\d{8}\.md$/.test(names[2]), names.join(","));
+    const rep = await (await fetch(captured[captured.length - 3].href)).text();
+    check("report source", rep.indexOf("Source: qus_input_25.csv") > 0);
+
+    // ---- Review
+    click(D.querySelector('#resultsScreen [data-go="home"]')); await sleep(400);
+    check("home review count", txt("tileReviewSub") === "1 finished quiz" && txt("tileResumeSub") === "Nothing in progress", txt("tileReviewSub") + " / " + txt("tileResumeSub"));
+    click(D.querySelector('.tile[data-go="review"]')); await sleep(400);
+    rows = rowButtons("reviewList");
+    check("review row", rows.length === 1 && rows[0].meta.indexOf("of 25 correct") > 0, rows.map(r => r.meta).join("|"));
+    btn(rows[0], "Review").click(); await sleep(300);
+    check("review shows same score", visible("resultsScreen") && txt("scoreFrac") === scoreFrac);
+    // retake creates a new attempt with a different order
+    click("retakeBtn"); await sleep(400);
+    check("retake quiz", visible("quizScreen") && D.querySelectorAll(".qblock").length === 25 && txt("answeredCounter") === "0 of 25 answered" && $("noteText").value === "");
+    click(D.querySelector('.quizbar [data-go="home"]')); await sleep(400);
+    check("home after retake", txt("tileResumeSub") === "1 quiz in progress" && txt("tileReviewSub") === "1 finished quiz", txt("tileResumeSub"));
+
+    // ---- Import v3 JSON when it already exists (export was older than the submitted copy)
+    click(D.querySelector('.tile[data-go="import"]')); await sleep(200);
+    await setFile("importInput", exp.name, expText, "application/json"); await sleep(300);
+    check("import v3 existing newer kept", visible("importDone") && txt("importDone").indexOf("You already have this quiz") === 0, txt("importDone") + " / " + txt("importError"));
+
+    // ---- Delete the bank (and its attempts), then import v3 JSON fresh
+    click(D.querySelector('.tile[data-go="start"]')); await sleep(400);
+    rows = rowButtons("bankList");
+    check("bank shows 2 attempts", rows[0].meta.indexOf("2 attempts") > 0, rows[0].meta);
+    btn(rows[0], "Rename").click(); await sleep(300);
+    check("rename", rowButtons("bankList")[0].title === "Renamed Bank");
+    btn(rowButtons("bankList")[0], "Delete").click(); await sleep(400);
+    check("bank deleted", rowButtons("bankList").length === 0 && $("bankList").textContent.indexOf("No question banks yet") === 0);
+    click(D.querySelector('#startScreen [data-go="home"]')); await sleep(400);
+    check("home empty after delete", txt("tileResumeSub") === "Nothing in progress" && txt("tileReviewSub") === "No finished quizzes yet");
+    click(D.querySelector('.tile[data-go="import"]')); await sleep(200);
+    await setFile("importInput", exp.name, expText, "application/json"); await sleep(400);
+    check("import v3 fresh", txt("importDone").indexOf("Imported. qus_input_25: 2 of 25 answered.") === 0, txt("importDone") + " / " + txt("importError"));
+    [...$("importDone").querySelectorAll("button")].find(b => b.textContent === "Open quiz").click(); await sleep(300);
+    check("imported quiz opens", visible("quizScreen") && txt("answeredCounter") === "2 of 25 answered  -  1 flagged" && $("noteText").value === "my notes ü ✓" && D.querySelectorAll(".qblock")[0].querySelector(".qtext").textContent === q1text);
+
+    // ---- v2 .txt when its bank exists (same CSV hash) -> no CSV step
+    const v2 = await getText("../saves_v2/s25_few_answered_few_flagged.txt");
+    click(D.querySelector('.quizbar [data-go="home"]')); await sleep(300);
+    click(D.querySelector('.tile[data-go="import"]')); await sleep(200);
+    await setFile("importInput", "v2save.txt", v2); await sleep(400);
+    check("import v2 direct", txt("importDone").indexOf("Imported your version 2 save") === 0, txt("importDone") + " / " + txt("importError"));
+    await setFile("importInput", "v2save.txt", v2); await sleep(400);
+    check("import v2 again dedupes", txt("importDone").indexOf("You already imported this save") === 0, txt("importDone"));
+    [...$("importDone").querySelectorAll("button")].find(b => b.textContent === "Open quiz").click(); await sleep(300);
+    check("v2 opens", visible("quizScreen") && /^2 of 25 answered {2}- {2}\d+ flagged$/.test(txt("answeredCounter")), txt("answeredCounter"));
+
+    // ---- delete everything, v2 .txt needs its CSV
+    click(D.querySelector('.quizbar [data-go="home"]')); await sleep(300);
+    click(D.querySelector('.tile[data-go="start"]')); await sleep(400);
+    btn(rowButtons("bankList")[0], "Delete").click(); await sleep(400);
+    click(D.querySelector('#startScreen [data-go="home"]')); await sleep(300);
+    click(D.querySelector('.tile[data-go="import"]')); await sleep(200);
+    await setFile("importInput", "v2save.txt", v2); await sleep(400);
+    check("v2 asks for csv", visible("importCsvStep") && txt("importCsvMsg").indexOf("question_input_09072616.csv") > 0, txt("importCsvMsg") + " / " + txt("importError"));
+    await setFile("importCsvInput", "qus_input_5.csv", await getText("../csv/qus_input_5.csv"), "text/csv"); await sleep(300);
+    check("v2 wrong csv rejected", visible("importError") && txt("importError").indexOf("doesn't match this save") > 0 && visible("importCsvStep"), txt("importError"));
+    await setFile("importCsvInput", "qus_input_25.csv", csv25, "text/csv"); await sleep(400);
+    check("v2 with csv imported", txt("importDone").indexOf("Imported your version 2 save") === 0 && !visible("importCsvStep") && !visible("importError"), txt("importDone") + " / " + txt("importError"));
+
+    // ---- bare CSV import, junk txt, bad json
+    await setFile("importInput", "qus_input_5.csv", await getText("../csv/qus_input_5.csv"), "text/csv"); await sleep(400);
+    check("csv import", txt("importDone").indexOf("Question bank “qus_input_5” is ready (5 questions)") === 0, txt("importDone") + " / " + txt("importError"));
+    await setFile("importInput", "junk.txt", "hello world"); await sleep(300);
+    check("junk txt error", txt("importError") === "That .txt file doesn't contain a Quiz Qrusher resume code.", txt("importError"));
+    await setFile("importInput", "x.json", '{"a":1}', "application/json"); await sleep(300);
+    check("wrong json error", txt("importError") === "That JSON file isn't a Quiz Qrusher backup.", txt("importError"));
+    await setFile("importInput", "new.json", JSON.stringify(Object.assign({}, expJson, { version: 4 })), "application/json"); await sleep(300);
+    check("newer version error", txt("importError").indexOf("newer version") > 0, txt("importError"));
+
+    // ---- tabs
+    click(D.querySelector('.tab[data-tab="help"]')); await sleep(100);
+    check("help tab", visible("helpScreen") && D.querySelector('.tab[data-tab="help"]').getAttribute("aria-current") === "page");
+    click(D.querySelector('.tab[data-tab="home"]')); await sleep(300);
+    check("home tab", visible("homeScreen"));
+    check("no persistent stray keys", Object.keys(W.localStorage).every(k => k.indexOf("quizQrusher:") === 0), Object.keys(W.localStorage).join(","));
+  } catch (e) { fail++; log("EXCEPTION " + e.stack); }
+  log("DONE pass=" + pass + " fail=" + fail);
+  fetch("/log", { method: "POST", body: document.getElementById("log").textContent });
+})();
+</script>
+</body></html>

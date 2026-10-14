@@ -219,7 +219,7 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
     - Also seen: one Reconnect returned `prompt` (the user dismissed the permission bubble). Reconnect must treat `prompt` as "not yet", keep the button visible, and not show an error.
   - **Firefox (2026-10-14, informal):** no `showDirectoryPicker`, as expected. It did **grant persistent storage** (`persist()`), which helps Lite's browser-storage fallback there.
     - Unverified: whether Firefox shares storage across `file://` pages. By default Firefox treats each local file as its own origin, so a replaced Lite file may *not* see the old autosaves. Test this in Phase 6. If it doesn't share, the Firefox path relies on the downloaded `.json` saves.
-- [ ] **2. Core:**
+- [x] **2. Core:**
   - app shell (tabs, Home tiles)
   - storage layer (IndexedDB plus fallback)
   - v3 save format
@@ -227,6 +227,18 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
   - Start / Resume / Review / Import (v3 JSON, v2 txt+CSV, CSV)
   - autosave
   - Export backup
+  - Done 2026-10-14 in `index.html`. The Prompt Builder, Help, Settings and Feedback tabs are placeholders until their phases. Implementation notes:
+    - **Storage:** IndexedDB database `quizQrusher:app` with stores `banks` and `attempts` (keyPath `id`) and `kv` (reserved for the Phase 5 folder handle). If IndexedDB fails or doesn't answer within 5 s, it falls back to localStorage keys `quizQrusher:db:<store>:<id>`, then to memory. Each fallback shows a banner on Home.
+    - **Banks** are deduplicated by `csvHash`: loading the same CSV again reuses the bank. Deleting a bank deletes its attempts.
+    - **Attempts** are stored with a `bankId`. The export drops it (the bank travels inside the file), so the exported JSON matches the §2 format exactly.
+    - `attempt.results = { submittedAt, correct, total, scored, revealed, byCategory: {name: {correct, total}} }`. `scored`/`revealed` are ready for Tutor mode (Phase 3). `elapsedMs` stays 0 until the timer exists.
+    - **Import:**
+      - A v3 `.json` keeps whichever copy has the newer `updatedAt`.
+      - A v2 `.txt` matches an existing bank by `csvHash`, and only asks for the CSV when there's no match. Its attempt id is `v2-<csvHash>-<timestamp>`, so importing it twice doesn't duplicate it.
+      - A bare `.csv` creates a bank.
+    - **Autosave:** answers and flags save immediately, notes after 500 ms, and pending saves flush on leaving the quiz, hiding the tab or closing it. The quiz header shows "✓ Saved in browser · just now". **Export backup** is in the quiz, the notes dock, Results, and each Resume/Review row.
+    - The shared blocks `QQ-SHARED:csv` and `QQ-SHARED:save-format` are fenced for Lite. The commented-out dead code from v2 wasn't carried over (it's in git history).
+    - **Regression harness:** [test-data/harness/app_harness.html](../test-data/harness/app_harness.html) (how to run is at the top of the file). It runs 56 checks covering every flow above, against both IndexedDB and the localStorage fallback. Rerun it after each phase and extend it as features land.
 - [ ] **3. Quiz features:** Tutor/Test toggle + Show answer, timer, retake missed/flagged, category trends, Help from the quiz screen.
 - [ ] **4. Settings + theming:** move all colors to tokens, the Settings tab, the unsupported-browser dialog.
 - [ ] **5. Saves folder** (Chrome/Edge): link, reconnect, debounced writes, reconciliation, multi-tab safety, status line.
@@ -246,6 +258,7 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
   - test in Chrome, Edge, Firefox and Safari (desktop + iPad if possible), both from the site and opened from disk
   - tag `v3.0.0`
   - update the "What's new" page
+  - remove "preview build" from the Home footer
 
 ---
 
@@ -253,7 +266,6 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
 1. **Google Form link (Phase 7):** the user is creating it. If prefilling is wanted, the form needs "App version" and "Browser" short-answer fields. Use a placeholder until the link arrives.
 2. **GoatCounter site code (Phase 7):** the user needs an account at goatcounter.com. Use a placeholder until then.
 3. **Show-answer edge case:** a correct answer given before the reveal is assumed to count as correct (§2 Quiz features). Confirm when building Phase 3.
-4. **Lite Apply fallback message (Phase 6):** Phase 1 showed that relinking isn't needed on Chrome/Edge. Proposed wording: "...then reopen it and press Reconnect". Also warn that Chrome may save the file as `... (1).html`. Asked on 2026-10-14; no answer yet.
 
 Resolved on 2026-10-14:
 - `gh` is logged in.
@@ -263,3 +275,5 @@ Resolved on 2026-10-14:
 - Show-answer scoring is decided.
 - Lite non-Chrome saving is browser storage plus downloaded JSON (trial).
 - The download prompt fires on Submit, plus an optional interval set in Settings.
+- Lite Apply fallback message: "Delete the old Lite file and put this one in its place, then reopen it and press Reconnect (Chrome/Edge)." Relinking isn't needed (Phase 1). Also warn that the browser may save the file as `... (1).html`.
+- **The Reconnect button must be hard to miss** (full app and Lite): a prominent accent-colored button in the quiz header/status line, plus a banner on Home and on quiz open whenever a linked folder needs permission. Never just a small text link.
