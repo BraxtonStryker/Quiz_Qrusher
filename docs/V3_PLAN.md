@@ -91,7 +91,7 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
 **Show-answer scoring (decided by user):**
 - Revealed questions are **not scored**, *unless an incorrect answer was logged before Show answer was clicked*. That case counts as **incorrect**.
 - Revealed with no answer → excluded from the score; shown as "Revealed — not scored".
-- *Assumed (confirm):* answered **correctly** before reveal → counts as correct. The answer was committed before seeing the solution.
+- Answered **correctly** before reveal → counts as correct (confirmed by the user). The answer was committed before seeing the solution.
 - Once revealed, the question's answer **locks**, so it can't be changed afterwards.
 - Excluded questions leave the score denominator. Results show "X of Y scored (Z revealed)". Category stats and trends use the same rule.
 - Store the answer-at-reveal-time in `revealed[]`, e.g. `null` = not revealed, `{at, answerBefore}` = revealed.
@@ -244,7 +244,7 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
     - **Tutor mode:** a "TEST MODE / TUTOR MODE" tab sits above NOTES in the side dock. Tutor mode shows a Show answer button on each question. Switching back to Test hides the buttons; revealed questions stay revealed and locked. `attempt.mode` holds the current toggle.
     - **Settings stub:** `settings.showAnswer` false hides the toggle and every Show answer button. Settings are read from localStorage `quizQrusher:settings` with defaults `{showAnswer: true, timer: true, focusCutoff: 0.7}`; Phase 4 adds the UI.
     - **Reveal:** marks the correct option ("Correct answer") and a wrong pick ("Your answer"), and adds a note: "Revealed — not scored" or "Revealed after answering — counts as correct/incorrect". `revealed[i] = {at, answerBefore}`.
-    - **Scoring:** revealed with no answer → excluded and listed as "Revealed — not scored". Answered before the reveal → counts as given. The correct-before-reveal case was **implemented as assumed (counts as correct); still unconfirmed**, see open item 3; it's a one-line change in `computeResults`/`revealExcluded`. Results read "X of Y correct · Z revealed (not scored)". `results.total` = every question, `results.scored` = the scored ones.
+    - **Scoring:** revealed with no answer → excluded and listed as "Revealed — not scored". Answered before the reveal → counts as given. Correct-before-reveal counts as correct (confirmed). Results read "X of Y correct · Z revealed (not scored)". `results.total` = every question, `results.scored` = the scored ones.
     - **Timer:** counts only while the quiz is on screen and the tab is visible. It's saved in `elapsedMs` (also every 60 s), shown as ⏱ in the quiz bar and as "time m:ss" on Results. `settings.timer` false hides it; time is still tracked.
     - **Retake:** All / Missed / Flagged / Missed + flagged, with counts, on Results (and so on Review). "Missed" = wrong, unanswered or revealed. A subset retake is a new attempt with `retake: {of, kind}`, an optional field added to the save format (older files simply don't have it). Its title reads "Bank · flagged questions".
     - **Category trends:** on Results/Review once a bank has 2+ submitted *full* attempts (subset retakes are left out because they'd skew every category). Shows the last 6 as % chips, oldest to newest, with the viewed attempt outlined and the change since the previous attempt.
@@ -271,7 +271,17 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
       - Clear all (deletes the stores and every `quizQrusher:` key, then reloads)
     - **Unsupported-browser dialog** (`<dialog>`): appears when `showDirectoryPicker` is missing, once per browser session unless "Don't show again" (`quizQrusher:hideBrowserNotice`). On mobile it says "on a computer". "Use Lite version" goes to `lite.html` (exists from Phase 6).
     - **Harness:** 129 checks. `logserver.py` serves `/_variant/nofsa/…` and `/_variant/noidb/…` (the app with `showDirectoryPicker` or IndexedDB removed). Run it as-is and with `?src=/_variant/noidb/index.html`.
-- [ ] **5. Saves folder** (Chrome/Edge): link, reconnect, debounced writes, reconciliation, multi-tab safety, status line.
+- [x] **5. Saves folder** (Chrome/Edge): link, reconnect, debounced writes, reconciliation, multi-tab safety, status line.
+  - Done 2026-10-14. Notes:
+    - **Storage of the link:** the handle and bookkeeping live in IndexedDB `kv`: `savesDir` `{handle, name, linkedAt}`, `folderNames` (attempt id → file name), `deleted` (tombstones). The folder needs IndexedDB, so it's off on the localStorage/memory fallbacks.
+    - **Files:** one per quiz, `<bank>_<YYYY-MM-DD>_<last 6 of attempt id>.json`, in the v3 save format. Files are matched by the attempt id **inside**, never by name. Renaming a bank rewrites its files under the new name and deletes the old ones.
+    - **Writes:** browser storage first, then the folder 1 s later (debounced, one write at a time per file). Imports and bundles queue folder writes too.
+    - **Reconcile** runs on start (if permission is `granted`), on link and on reconnect. The newer `updatedAt` wins per quiz: folder-only quizzes are imported, and browser-only or newer ones are written out. The open quiz always wins. Non-`.json` files (including iCloud/OneDrive `.crswap`) and non-save JSON are skipped.
+    - **Deletes:** deleting a quiz removes its file and leaves a tombstone, so a stale copy (e.g. synced back by iCloud) is deleted rather than re-imported.
+    - **Problems → UI:** "needs permission" (the normal state after a browser restart), "folder not found", "blocked" and "write error" each get a prominent accent **Reconnect folder / Choose folder / Try again** button in the quiz bar, a banner above the questions, and the same banner on Home. The status ✓ becomes a red "⚠ Saved in browser only". A dismissed permission bubble (`prompt`) just leaves the button there.
+    - **Two tabs:** opening a quiz broadcasts a claim on BroadcastChannel `quizQrusher:tabs`. The other tab saves, replies with its `updatedAt` (the newer copy is reloaded in the claiming tab), and shows a modal "Open in another tab" with **Use it here** / **Go to Home**. A paused tab never writes. Escape can't dismiss the modal.
+    - **Settings → Saving → Saves folder:** Link a folder / Change folder / Unlink, plus the fix button when there's a problem. The description recommends a dedicated folder set to "Always keep on this device" in iCloud/OneDrive. Clear all data also unlinks (the files stay).
+    - **Harness:** 149 checks. The `fsatest` variant in `logserver.py` makes the picker return a real OPFS directory and fakes `prompt`/`granted` via `qqtest:*` localStorage keys. That covers linking, write-through, reconcile both ways, `.crswap`, Reconnect (including a dismissed prompt), tombstones, a missing folder and two tabs. Real-folder checks on Chrome/Edge are still part of Phase 10.
 - [ ] **6. Lite:**
   - `lite.html` from v2.3.3 + shared blocks
   - baked settings + Apply regeneration
@@ -295,7 +305,6 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
 ## 5. Open items (ask the user when you reach them)
 1. **Google Form link (Phase 7):** the user is creating it. If prefilling is wanted, the form needs "App version" and "Browser" short-answer fields. Use a placeholder until the link arrives.
 2. **GoatCounter site code (Phase 7):** the user needs an account at goatcounter.com. Use a placeholder until then.
-3. **Show-answer edge case:** a correct answer given before the reveal is assumed to count as correct (§2 Quiz features). Built that way in Phase 3. Asked on 2026-10-14; not answered yet.
 
 Resolved on 2026-10-14:
 - `gh` is logged in.
@@ -304,6 +313,7 @@ Resolved on 2026-10-14:
 - `test-data/csv/` and `docs/guides/` stay private.
 - Show-answer scoring is decided.
 - Lite non-Chrome saving is browser storage plus downloaded JSON (trial).
+- Show answer after a **correct** answer counts as **correct** (confirmed 2026-10-14; built that way in Phase 3).
 - The download prompt fires on Submit, plus an optional interval set in Settings.
 - Lite Apply fallback message: "Delete the old Lite file and put this one in its place, then reopen it and press Reconnect (Chrome/Edge)." Relinking isn't needed (Phase 1). Also warn that the browser may save the file as `... (1).html`.
 - **Save status is just a green ✓** (full app and Lite). "Saved in browser · just now" appears on hover or keyboard focus, and the check carries it as its `aria-label`. Warnings (⚠) always show their full text. (User request, 2026-10-14.)

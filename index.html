@@ -167,6 +167,10 @@
   .topbar{position:sticky; top:0; z-index:5; background:var(--bg); padding:10px 0 6px}
   .quizbar{display:flex; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap}  /*v3.0*/
   .quizname{font-weight:650; font-size:calc(15px * var(--fs)); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .btn.reconnect{padding:6px 12px; font-size:calc(13px * var(--fs)); box-shadow:0 0 0 3px var(--accent-soft)}  /*v3.0 - hard to miss*/
+  .banner .bannerrow{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+  .banner .bannerrow span{flex:1; min-width:220px}
+  .banner.folder{background:var(--accent-soft); color:var(--ink); border:1.5px solid var(--accent)}
   .savestat{font-size:calc(12.5px * var(--fs)); color:var(--good); font-weight:600; border-radius:6px; padding:2px 4px; cursor:default; outline-offset:2px}
   .savestat.bad{color:var(--bad)}
   .savestat .ic{font-size:calc(15px * var(--fs)); line-height:1}
@@ -434,6 +438,7 @@
       <p class="lede" style="margin-bottom:0">Load a CSV of multiple-choice questions, take the quiz, and get a graded report that shows your weak categories. Your quizzes save automatically in this browser.</p>
     </div>
     <div class="banner hidden" id="storageBanner" role="status"></div>
+    <div class="banner folder hidden" id="homeFolderBanner" role="alert"><div class="bannerrow"><span></span><button class="btn sm" type="button"></button></div></div> <!--v3.0-->
     <div class="tiles">
       <button class="tile" type="button" data-go="start">
         <span class="glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></span>
@@ -547,6 +552,7 @@
         <span class="quizname" id="quizName"></span>
         <span class="timer" id="timerDisplay" title="Time spent on this quiz"></span>
         <button class="linkbtn" id="quizHelpBtn" type="button">Help</button>
+        <button class="btn sm reconnect hidden" id="reconnectBtn" type="button">Reconnect folder</button> <!--v3.0 - Phase 5-->
         <span class="savestat" id="saveStatus" role="status" tabindex="0"></span>
       </div>
       <div class="progress"><span id="progressFill"></span></div>
@@ -556,6 +562,7 @@
       </div>
     </div>
 
+    <div class="banner folder hidden" id="quizFolderBanner" role="alert"><div class="bannerrow"><span></span><button class="btn sm" type="button"></button></div></div> <!--v3.0-->
     <div id="qList"></div>
 
     <!-- Export backup -->                                            <!--v3.0 - replaces v2.3.3's "Save progress to file"-->
@@ -677,6 +684,16 @@
   <div class="actions">
     <button class="btn subtle" id="useLiteBtn" type="button">Use Lite version</button>
     <button class="btn" id="useFullBtn" type="button">Use full version</button>
+  </div>
+</dialog>
+
+<!-- ====== SAME QUIZ IN ANOTHER TAB ====== --> <!--v3.0 - Phase 5-->
+<dialog class="qq-dialog" id="tabPaused" aria-labelledby="tabPausedTitle">
+  <h2 id="tabPausedTitle">Open in another tab</h2>
+  <p>This quiz was opened in another tab, so it's paused here to keep the two from overwriting each other's progress.</p>
+  <div class="actions">
+    <button class="btn" id="useHereBtn" type="button">Use it here</button>
+    <button class="btn subtle" id="pausedHomeBtn" type="button">Go to Home</button>
   </div>
 </dialog>
 
@@ -989,7 +1006,11 @@
       get: function(s, id){ return tx(s, "readonly", function(o){ return o.get(id); }); },
       getAll: function(s){ return tx(s, "readonly", function(o){ return o.getAll(); }); },
       put: function(s, v){ return tx(s, "readwrite", function(o){ return o.put(v); }); },
-      del: function(s, id){ return tx(s, "readwrite", function(o){ return o.delete(id); }); }
+      del: function(s, id){ return tx(s, "readwrite", function(o){ return o.delete(id); }); },
+      // small key/value store: the saves-folder handle and its bookkeeping (Phase 5)
+      kvGet: function(k){ return tx("kv", "readonly", function(o){ return o.get(k); }); },
+      kvSet: function(k, v){ return tx("kv", "readwrite", function(o){ return o.put(v, k); }); },
+      kvDel: function(k){ return tx("kv", "readwrite", function(o){ return o.delete(k); }); }
     };
   }
   function openIdb(){
@@ -1024,7 +1045,10 @@
       get: function(s, id){ return later(function(){ var v = area.get(key(s, id)); return v == null ? undefined : JSON.parse(v); }); },
       getAll: function(s){ return later(function(){ return area.keys().filter(function(k){ return k.indexOf(P + s + ":") === 0; }).map(function(k){ return JSON.parse(area.get(k)); }); }); },
       put: function(s, v){ return later(function(){ area.set(key(s, v.id), JSON.stringify(v)); }); },
-      del: function(s, id){ return later(function(){ area.remove(key(s, id)); }); }
+      del: function(s, id){ return later(function(){ area.remove(key(s, id)); }); },
+      kvGet: function(k){ return later(function(){ var v = area.get(P + "kv:" + k); return v == null ? undefined : JSON.parse(v); }); },
+      kvSet: function(k, v){ return later(function(){ area.set(P + "kv:" + k, JSON.stringify(v)); }); },
+      kvDel: function(k){ return later(function(){ area.remove(P + "kv:" + k); }); }
     };
   }
   function lsArea(){
@@ -1186,11 +1210,11 @@
   }
   function saveNow(){
     clearTimeout(saveTimer); saveTimer = null;
-    if (!cur || !store) return saveChain;
+    if (!cur || !store || pausedHere) return saveChain;   //v3.0 - a tab paused for another tab never writes
     syncAttempt();
     var copy = JSON.parse(JSON.stringify(cur.attempt));
     saveChain = saveChain.then(function(){ return store.put("attempts", copy); }).then(
-      function(){ lastSavedAt = Date.now(); saveError = null; renderSaveStatus(); },
+      function(){ lastSavedAt = Date.now(); saveError = null; renderSaveStatus(); queueFolderWrite(copy.id); }, //v3.0 - then the folder, ~1 s later
       function(e){ saveError = e || new Error("unknown error"); renderSaveStatus(); }
     );
     return saveChain;
@@ -1206,6 +1230,12 @@
     if (store && store.kind === "memory"){ s.classList.add("bad"); put("⚠", "Not saved: this browser blocks storage. Use Export backup."); return; }
     if (saveError){ s.classList.add("bad"); put("⚠", "Couldn't save in this browser. Use Export backup."); s.title = String(saveError.message || saveError); return; }
     s.title = "";
+    if (folderReady()){ //v3.0 - Phase 5
+      var t = folder.lastWriteAt || lastSavedAt;
+      put("✓", "Saved to folder “" + folder.rec.name + "”" + (t ? " · " + ago(t) : ""));
+      return;
+    }
+    if (folder.rec){ s.classList.add("bad"); put("⚠", "Saved in browser only"); s.title = folderProblemText(); return; }
     put("✓", lastSavedAt ? "Saved in browser · " + ago(lastSavedAt) : "Saves automatically in this browser");
   }
 
@@ -1324,6 +1354,9 @@
     store.put("banks", bank).then(function(){
       if (cur && cur.bank.id === bank.id) cur.bank.name = name;
       renderBankList();
+      return store.getAll("attempts");
+    }).then(function(atts){ //v3.0 - folder file names include the bank name
+      (atts || []).forEach(function(a){ if (a.bankId === bank.id) queueFolderWrite(a.id); });
     });
   }
   function deleteBank(bank, attemptCount){
@@ -1331,6 +1364,7 @@
     if (!window.confirm(msg)) return;
     store.getAll("attempts").then(function(atts){
       var mine = atts.filter(function(a){ return a.bankId === bank.id; });
+      mine.forEach(function(a){ folderDelete(a.id); }); //v3.0
       return Promise.all(mine.map(function(a){ return store.del("attempts", a.id); }));
     }).then(function(){ return store.del("banks", bank.id); }).then(function(){
       if (cur && cur.bank.id === bank.id) cur = null;
@@ -1340,6 +1374,7 @@
   }
   function deleteAttempt(attempt, bankName, after){
     if (!window.confirm("Delete this " + (attempt.status === "submitted" ? "finished" : "unfinished") + " quiz from “" + bankName + "”?\n\nThis can't be undone.")) return;
+    folderDelete(attempt.id); //v3.0
     store.del("attempts", attempt.id).then(function(){
       if (cur && cur.attempt.id === attempt.id) cur = null;
       after();
@@ -1448,6 +1483,7 @@
     questions.forEach(function(q){ q.flagged = false; });
     notesText = ""; el("noteText").value = ""; noteHint();
     cur = { bank: bank, attempt: newAttempt(bank) };
+    pausedHere = false;
     lastPromptAt = Date.now(); //v3.0
     if (subset) cur.attempt.retake = { of: subset.of || "", kind: subset.kind };
     lastResults = null; lastSavedAt = 0; saveError = null;
@@ -1458,12 +1494,15 @@
     saveNow();
     touchBank(bank);
   }
-  function openAttempt(bank, attempt){
+  // reload (optional): re-open the same attempt from storage without saving this tab's copy first //v3.0
+  function openAttempt(bank, attempt, reload){
     var h;
     try { h = hydrate(bank, attempt); }
     catch (e){ window.alert(e.message); return; }
-    leaveCurrent();
+    if (!reload) leaveCurrent(); else timerStart = 0;
+    pausedHere = false; //v3.0
     cur = { bank: bank, attempt: attempt };
+    claimCurrent();     //v3.0 - other tabs showing this quiz pause
     lastPromptAt = Date.now(); //v3.0
     questions = h.questions; answers = h.answers; revealed = h.revealed;
     notesText = attempt.notes || ""; el("noteText").value = notesText; noteHint();
@@ -2021,6 +2060,7 @@
           return;
         }
         return store.put("attempts", att).then(function(){
+          queueFolderWrite(att.id); //v3.0
           importDone((existing ? "Replaced your older copy of this quiz." : "Imported.") + " " + bank.name + ": " +
             (att.status === "submitted" ? "finished quiz." : answeredCount(att) + " of " + att.questionOrder.length + " answered."), bank, att);
         });
@@ -2054,8 +2094,240 @@
     return store.get("attempts", att.id).then(function(existing){
       if (existing){ importDone("You already imported this save. It's in Resume.", bank, existing); return; }
       return store.put("attempts", att).then(function(){
+        queueFolderWrite(att.id); //v3.0
         importDone("Imported your version 2 save: " + bank.name + ", " + answeredCount(att) + " of " + att.questionOrder.length + " answered.", bank, att);
       });
+    });
+  }
+
+  /* ---------- Saves folder (Chrome/Edge: File System Access API) ---------- */ //v3.0 - Phase 5
+  // Every quiz saves to browser storage first, then about 1 s later to <folder>/<bank>_<date>_<id>.json in the
+  // v3 save format. The folder handle lives in IndexedDB. After a browser restart the permission resets to
+  // "prompt" (Phase 1 finding), so the user clicks Reconnect once per session. Files are matched to quizzes
+  // by the attempt id inside them, never by file name.
+  var folder = { rec: null, perm: "none", missing: false, error: null, lastWriteAt: 0, names: {}, tomb: {} };
+  var folderTimers = {}, folderChains = {}, reconcileRun = null;
+
+  function folderAvailable(){ return HAS_FSA && !!store && store.kind === "indexeddb"; }
+  function folderReady(){ return !!(folder.rec && folder.perm === "granted" && !folder.missing && !folder.error); }
+  function folderProblemText(){
+    if (!folder.rec) return "";
+    var n = "“" + folder.rec.name + "”";
+    if (folder.missing) return "Can't find your saves folder " + n + ". It may have been moved, renamed or deleted. Quizzes are still saving in this browser.";
+    if (folder.error) return "Couldn't save to your saves folder " + n + " (" + (folder.error.message || folder.error) + "). Quizzes are still saving in this browser.";
+    if (folder.perm === "denied") return "Access to your saves folder " + n + " was blocked. Choose the folder again to keep saving there. Quizzes are still saving in this browser.";
+    return "Your saves folder " + n + " needs permission again. Browsers ask once per session. Quizzes are still saving in this browser until you reconnect.";
+  }
+  function folderAction(){ // what the Reconnect buttons do for the current problem
+    if (folder.missing || folder.perm === "denied") return { label: "Choose folder", run: linkFolder };
+    if (folder.error) return { label: "Try again", run: function(){ folder.error = null; return reconcile().then(renderFolderUI); } };
+    return { label: "Reconnect", run: reconnectFolder };
+  }
+  // Reconnect button in the quiz bar, plus a banner on Home and on the quiz whenever the linked folder isn't usable.
+  function renderFolderUI(){
+    var problem = !!folder.rec && !folderReady(), act = folderAction();
+    el("reconnectBtn").classList.toggle("hidden", !problem);
+    el("reconnectBtn").textContent = act.label === "Reconnect" ? "Reconnect folder" : act.label;
+    ["homeFolderBanner", "quizFolderBanner"].forEach(function(id){
+      var b = el(id);
+      b.classList.toggle("hidden", !problem);
+      if (problem){ b.querySelector("span").textContent = folderProblemText(); b.querySelector("button").textContent = act.label; }
+    });
+    renderSaveStatus();
+    if (!el("settingsScreen").classList.contains("hidden")) renderSettings();
+  }
+  function folderFail(e){
+    if (e && e.name === "NotFoundError") folder.missing = true;
+    else if (e && (e.name === "NotAllowedError" || e.name === "SecurityError")) folder.perm = "prompt";
+    else folder.error = e || new Error("unknown error");
+    renderFolderUI();
+  }
+  function saveFolderMeta(){
+    return Promise.all([store.kvSet("folderNames", folder.names), store.kvSet("deleted", folder.tomb)]).catch(function(){});
+  }
+
+  function loadFolder(){
+    if (!folderAvailable()) return Promise.resolve();
+    return Promise.all([store.kvGet("savesDir"), store.kvGet("folderNames"), store.kvGet("deleted")]).then(function(r){
+      folder.rec = r[0] && r[0].handle ? r[0] : null; folder.names = r[1] || {}; folder.tomb = r[2] || {};
+      if (!folder.rec) return;
+      return folder.rec.handle.queryPermission({ mode: "readwrite" }).then(function(p){
+        folder.perm = p;
+        if (p === "granted") return reconcile();
+      });
+    }).catch(folderFail).then(renderFolderUI);
+  }
+  function linkFolder(){
+    if (!folderAvailable()) return Promise.resolve();
+    return window.showDirectoryPicker({ id: "quizQrusherSaves", mode: "readwrite" }).then(function(dir){
+      folder.rec = { handle: dir, name: dir.name, linkedAt: Date.now() };
+      folder.perm = "granted"; folder.missing = false; folder.error = null; folder.names = {};
+      return store.kvSet("savesDir", folder.rec).then(saveFolderMeta).then(reconcile);
+    }).catch(function(e){ if (!(e && e.name === "AbortError")) folderFail(e); }).then(renderFolderUI);
+  }
+  function reconnectFolder(){
+    if (!folder.rec) return Promise.resolve();
+    return folder.rec.handle.requestPermission({ mode: "readwrite" }).then(function(p){
+      folder.perm = p;          // "prompt" means the bubble was dismissed: the button simply stays
+      if (p === "granted"){ folder.missing = false; folder.error = null; return reconcile(); }
+    }).catch(folderFail).then(renderFolderUI);
+  }
+  function unlinkFolder(){
+    folder.rec = null; folder.perm = "none"; folder.missing = false; folder.error = null; folder.names = {};
+    return Promise.all([store.kvDel("savesDir"), store.kvDel("folderNames")]).catch(function(){}).then(renderFolderUI);
+  }
+
+  function isoDay(ms){ var d = new Date(ms || Date.now()); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function folderFileName(bank, a){ return safeFile(bank.name) + "_" + isoDay(a.createdAt) + "_" + String(a.id).slice(-6) + ".json"; }
+
+  function queueFolderWrite(id){
+    if (!folder.rec || !id) return;
+    clearTimeout(folderTimers[id]);
+    folderTimers[id] = setTimeout(function(){
+      delete folderTimers[id];
+      folderChains[id] = (folderChains[id] || Promise.resolve()).then(function(){ return folderWrite(id); }); // one write per file at a time
+    }, 1000);
+  }
+  function folderWrite(id){
+    if (!folderReady()) return Promise.resolve();
+    var dir = folder.rec.handle;
+    return store.get("attempts", id).then(function(att){
+      if (!att) return;
+      return store.get("banks", att.bankId).then(function(bank){
+        if (!bank) return;
+        var name = folderFileName(bank, att), old = folder.names[id];
+        var text = JSON.stringify(makeSaveFile(bank, att, APP_VERSION), null, 2);
+        return dir.getFileHandle(name, { create: true })
+          .then(function(fh){ return fh.createWritable(); })
+          .then(function(w){ return w.write(text).then(function(){ return w.close(); }); })
+          .then(function(){
+            folder.lastWriteAt = Date.now();
+            if (old && old !== name) dir.removeEntry(old).catch(function(){});   // renamed bank: drop the old file
+            if (old !== name){ folder.names[id] = name; return saveFolderMeta(); }
+          });
+      });
+    }).then(renderSaveStatus, folderFail);
+  }
+  // Deleted quizzes leave a tombstone so a copy still in the folder isn't imported back.
+  function folderDelete(id){
+    if (!folder.rec) return;
+    clearTimeout(folderTimers[id]); delete folderTimers[id];
+    folder.tomb[id] = Date.now();
+    var name = folder.names[id];
+    delete folder.names[id];
+    saveFolderMeta();
+    if (name && folderReady()) folder.rec.handle.removeEntry(name).catch(function(){});
+  }
+
+  // On open, link and reconnect: newer copy wins per quiz. Folder-only quizzes come into the browser,
+  // and browser-only (or newer) quizzes are written to the folder.
+  function reconcile(){
+    if (!folderReady()) return Promise.resolve();
+    if (reconcileRun) return reconcileRun;
+    reconcileRun = (async function(){
+      var dir = folder.rec.handle, inFolder = {}, changed = false;
+      try {
+        for await (var h of dir.values()){
+          if (h.kind !== "file" || !/\.json$/i.test(h.name)) continue;      // also skips .crswap temp files from iCloud/OneDrive
+          var file;
+          try { file = parseSaveFile(await (await h.getFile()).text()); } catch (e){ continue; } // not a quiz save
+          var att = file.attempt;
+          if (folder.tomb[att.id]){ try { await dir.removeEntry(h.name); } catch (e){} continue; }
+          if (inFolder[att.id]) continue;                                      // a second copy of the same quiz: first one wins
+          inFolder[att.id] = true;
+          folder.names[att.id] = h.name;
+          var local = await store.get("attempts", att.id);
+          if (local && (local.updatedAt || 0) >= (att.updatedAt || 0)){
+            if ((local.updatedAt || 0) > (att.updatedAt || 0)) queueFolderWrite(att.id);
+            continue;
+          }
+          if (cur && cur.attempt.id === att.id) continue;                       // the open quiz wins and overwrites the file
+          try {
+            var bank = await findOrCreateBank(file.bank.csvText, file.bank.fileName, file.bank.name);
+            att.bankId = bank.id;
+            hydrate(bank, att);
+            await store.put("attempts", att);
+            changed = true;
+          } catch (e){}
+        }
+      } catch (e){ folderFail(e); return; }
+      var all = await store.getAll("attempts");
+      all.forEach(function(a){ if (!inFolder[a.id]) queueFolderWrite(a.id); });
+      await saveFolderMeta();
+      if (changed) refreshVisibleLists();
+    })().then(function(){ reconcileRun = null; }, function(e){ reconcileRun = null; folderFail(e); });
+    return reconcileRun;
+  }
+  function refreshVisibleLists(){
+    if (!el("homeScreen").classList.contains("hidden")) refreshHome();
+    if (!el("resumeScreen").classList.contains("hidden")) renderResumeList();
+    if (!el("reviewScreen").classList.contains("hidden")) renderReviewList();
+    if (!el("startScreen").classList.contains("hidden")) renderBankList();
+  }
+
+  function renderFolderRow(card){
+    var desc, buttons = [];
+    if (!HAS_FSA) desc = "Not available in this browser. Chrome or Edge on a computer can save every quiz to a folder too.";
+    else if (!folderAvailable()) desc = "Needs the browser's main storage (IndexedDB), which is blocked here.";
+    else if (!folder.rec){
+      desc = "Also save every quiz as a .json file in a folder you pick. Use a dedicated folder; in iCloud Drive or OneDrive, set it to “Always keep on this device”.";
+      buttons.push(["Link a folder", "", linkFolder, "linkFolderBtn"]);
+    } else {
+      desc = folderReady()
+        ? "Linked to “" + folder.rec.name + "”. Every quiz is saved there too" + (folder.lastWriteAt ? " (last saved " + ago(folder.lastWriteAt) + ")." : ".")
+        : folderProblemText();
+      if (!folderReady()){ var act = folderAction(); buttons.push([act.label, "", act.run, "folderFixBtn"]); }
+      buttons.push(["Change folder", "subtle", linkFolder, "changeFolderBtn"]);
+      buttons.push(["Unlink", "subtle", function(){
+        if (window.confirm("Stop saving quizzes to “" + folder.rec.name + "”? The files already there stay.")) unlinkFolder();
+      }, "unlinkFolderBtn"]);
+    }
+    var sh = setRowShell("Saves folder", desc);
+    if (buttons.length){
+      var acts = document.createElement("div"); acts.className = "set-actions";
+      buttons.forEach(function(b){
+        var x = document.createElement("button"); x.type = "button"; x.className = "btn sm " + b[1]; x.textContent = b[0]; x.id = b[3];
+        x.addEventListener("click", b[2]); acts.appendChild(x);
+      });
+      sh.row.appendChild(acts);
+    }
+    card.appendChild(sh.row);
+  }
+
+  /* ---------- Same quiz open in two tabs ---------- */ //v3.0 - Phase 5
+  // Opening a quiz announces it; any other tab showing that quiz saves, says so, and pauses. "Use it here" takes it back.
+  var TAB_ID = uid("t"), pausedHere = false;
+  var tabsChannel = "BroadcastChannel" in window ? new BroadcastChannel(NS + "tabs") : null;
+  function claimCurrent(){
+    if (tabsChannel && cur && cur.attempt.status !== "submitted") tabsChannel.postMessage({ type: "claim", id: cur.attempt.id, tab: TAB_ID });
+  }
+  function pauseHere(){
+    timerPause();
+    pausedHere = true;
+    var d = el("tabPaused");
+    if (d.showModal){ if (!d.open) d.showModal(); } else d.setAttribute("open", "");
+  }
+  function closePausedDialog(){ var d = el("tabPaused"); if (d.close) d.close(); else d.removeAttribute("open"); }
+  if (tabsChannel) tabsChannel.onmessage = function(e){
+    var m = e.data || {};
+    if (m.tab === TAB_ID || !cur || cur.attempt.id !== m.id) return;
+    if (m.type === "claim" && !pausedHere){
+      timerPause();
+      saveNow().then(function(){
+        tabsChannel.postMessage({ type: "released", id: m.id, tab: TAB_ID, updatedAt: cur ? cur.attempt.updatedAt : 0 });
+      });
+      pauseHere();
+    } else if (m.type === "released" && !pausedHere && (m.updatedAt || 0) > (cur.attempt.updatedAt || 0)){
+      // the other tab had newer progress: reload it here without saving our older copy over it
+      store.get("attempts", m.id).then(function(fresh){ if (fresh && cur && cur.attempt.id === fresh.id) openAttempt(cur.bank, fresh, true); });
+    }
+  };
+  function useHere(){
+    if (!cur) { closePausedDialog(); return; }
+    var bank = cur.bank;
+    store.get("attempts", cur.attempt.id).then(function(fresh){
+      closePausedDialog();
+      if (fresh) openAttempt(bank, fresh, true); else { pausedHere = false; cur = null; go("home"); }
     });
   }
 
@@ -2087,12 +2359,7 @@
       { key: "fuCount", label: "Default question count", type: "select", options: [["auto", "Auto (5–10, from your misses)"], ["5", "5"], ["8", "8"], ["10", "10"], ["15", "15"], ["20", "20"]] }
     ]},
     { title: "Saving", rows: [
-      { type: "custom", render: function(card){
-          var sh = setRowShell("Saves folder", HAS_FSA
-            ? "Link a folder so every quiz is also saved there as a file. Coming in the next update."
-            : "Not available in this browser. Chrome or Edge on a computer can save quizzes to a folder.");
-          card.appendChild(sh.row);
-      } },
+      { type: "custom", render: renderFolderRow }, //v3.0 - Phase 5
       { key: "downloadOnSubmit", label: "Prompt me to download a save file when I submit", desc: "Recommended in browsers that can't link a saves folder.", type: "switch" },
       { key: "downloadInterval", label: "Also prompt during a quiz", type: "select", num: true, options: [[0, "Off"], [5, "Every 5 min"], [10, "Every 10 min"], [15, "Every 15 min"], [30, "Every 30 min"]] }
     ]},
@@ -2206,7 +2473,7 @@
       if (cur && cur.attempt.status !== "submitted") renderList();
       renderSettings();
     }).id = "resetSettingsBtn";
-    actionRow("Clear all data", "Deletes every question bank, quiz and setting kept in this browser.", "Clear all", "subtle danger", clearAll).id = "clearAllBtn";
+    actionRow("Clear all data", "Deletes every question bank, quiz and setting kept in this browser, and unlinks the saves folder (the files in it stay).", "Clear all", "subtle danger", clearAll).id = "clearAllBtn";
   }
 
   function exportAll(){
@@ -2235,7 +2502,7 @@
         try { hydrate(bank, att); } catch (e){ n.skipped++; return; }
         return store.get("attempts", att.id).then(function(ex){
           if (ex && (ex.updatedAt || 0) >= (att.updatedAt || 0)){ n.kept++; return; }
-          return store.put("attempts", att).then(function(){ if (ex) n.updated++; else n.added++; });
+          return store.put("attempts", att).then(function(){ queueFolderWrite(att.id); if (ex) n.updated++; else n.added++; });
         });
       });
     });
@@ -2256,6 +2523,8 @@
       if (!window.confirm(msg)) return;
       timerPause(); clearTimeout(saveTimer); saveTimer = null; cur = null;
       return saveChain.then(function(){
+        if (store.kvDel) return Promise.all(["savesDir", "folderNames", "deleted"].map(function(k){ return store.kvDel(k).catch(function(){}); })); //v3.0 - unlink; the files stay
+      }).then(function(){
         return Promise.all(r[0].map(function(b){ return store.del("banks", b.id); }).concat(r[1].map(function(a){ return store.del("attempts", a.id); })));
       }).then(function(){
         try {
@@ -2386,6 +2655,14 @@
   el("toastYes").addEventListener("click", function(){ var f = toastAction; hideToast(); if (f) f(); });
   el("toastNo").addEventListener("click", hideToast);
   el("useFullBtn").addEventListener("click", closeBrowserNotice);
+  // saves folder: the quiz-bar button and both banners run the fix for the current problem //v3.0 - Phase 5
+  var runFolderFix = function(){ folderAction().run(); };   // must stay inside the click: permission prompts need it
+  el("reconnectBtn").addEventListener("click", runFolderFix);
+  el("homeFolderBanner").querySelector("button").addEventListener("click", runFolderFix);
+  el("quizFolderBanner").querySelector("button").addEventListener("click", runFolderFix);
+  el("useHereBtn").addEventListener("click", useHere);
+  el("pausedHomeBtn").addEventListener("click", function(){ closePausedDialog(); cur = null; pausedHere = false; go("home"); });
+  el("tabPaused").addEventListener("cancel", function(e){ e.preventDefault(); }); // Escape would leave a quiz on screen that isn't saving
   el("useLiteBtn").addEventListener("click", function(){ closeBrowserNotice(); location.href = "lite.html"; });
 
   /* ---------- Startup ---------- */ //v3.0
@@ -2395,6 +2672,7 @@
     store = s;
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){}); // not awaited: it can sit unresolved
     refreshHome();
+    loadFolder(); //v3.0 - Phase 5
   });
 
 })();

@@ -12,6 +12,15 @@ ROOT, OUT = sys.argv[1], sys.argv[2]
 VARIANTS = {
     "nofsa": b"<script>try{delete Window.prototype.showDirectoryPicker;delete window.showDirectoryPicker;}catch(e){}</script>",
     "noidb": b"<script>try{Object.defineProperty(window,'indexedDB',{value:undefined});}catch(e){}</script>",
+    # The folder picker returns a real directory in the origin-private file system, so saves-folder code runs
+    # end to end without a picker UI. localStorage qqtest:perm=prompt fakes "needs permission again";
+    # qqtest:request=<state> sets what requestPermission answers (default granted).
+    "fsatest": (b"<script>(function(){window.showDirectoryPicker=async function(){var r=await navigator.storage.getDirectory();"
+                b"return r.getDirectoryHandle('qq-test-saves',{create:true});};var P=FileSystemHandle.prototype,q=P.queryPermission;"
+                b"P.queryPermission=function(o){if(localStorage.getItem('qqtest:perm')==='prompt')return Promise.resolve('prompt');"
+                b"return q?q.call(this,o):Promise.resolve('granted');};"
+                b"P.requestPermission=function(o){var v=localStorage.getItem('qqtest:request')||'granted';"
+                b"if(v==='granted')localStorage.removeItem('qqtest:perm');return Promise.resolve(v);};})();</script>"),
 }
 
 

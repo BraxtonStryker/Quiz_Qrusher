@@ -357,6 +357,103 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("p4 show notice again", W.localStorage.getItem("quizQrusher:hideBrowserNotice") === null && $("noticeAgainBtn").disabled);
     nf.remove();
 
+    // ======== Phase 5: saves folder (fake picker -> OPFS), reconnect, reconcile, tombstones, two tabs ========
+    // the saves folder needs IndexedDB, so this section is skipped in the noidb run
+    if (/noidb/.test(location.search)) log("SKIP p5 (no IndexedDB)"); else {
+    const mainWD = [W, D];
+    const opfsDir = async (create) => (await navigator.storage.getDirectory()).getDirectoryHandle("qq-test-saves", { create: !!create });
+    const folderFiles = async () => { try { const d = await opfsDir(); const out = []; for await (const h of d.values()) if (h.kind === "file" && h.name.endsWith(".json")) out.push({ name: h.name, data: JSON.parse(await (await h.getFile()).text()) }); return out; } catch (e) { return null; } };
+    const idbAll = (st) => new Promise((res, rej) => { const r = indexedDB.open("quizQrusher:app"); r.onsuccess = () => { const q = r.result.transaction(st, "readonly").objectStore(st).getAll(); q.onsuccess = () => { res(q.result); r.result.close(); }; q.onerror = () => rej(q.error); }; r.onerror = () => rej(r.error); });
+    const loadApp = async (id) => { let f = document.getElementById(id); if (!f) { f = document.createElement("iframe"); f.id = id; f.style.cssText = "width:1000px;height:700px"; document.body.appendChild(f); } const p = bind(id); f.src = "/_variant/fsatest/index.html?r=" + Math.random(); const w = await p; await sleep(1800); W = w; D = w.document; return w; };
+    try { await (await navigator.storage.getDirectory()).removeEntry("qq-test-saves", { recursive: true }); } catch (e) {}
+    await loadApp("fa");
+    click(D.querySelector('.tab[data-tab="settings"]')); await sleep(300);
+    check("p5 link button", !!$("linkFolderBtn"));
+    click("linkFolderBtn"); await sleep(2800);
+    let files = await folderFiles(), atts = await idbAll("attempts");
+    check("p5 linked", D.querySelector("#settingsBody").textContent.indexOf("Linked to “qq-test-saves”") >= 0);
+    check("p5 every quiz written to folder", files && files.length === atts.length && files.every(f => f.data.format === "quiz-qrusher-save" && /_\d{4}-\d\d-\d\d_[A-Za-z0-9-]{6}\.json$/.test(f.name)), (files || []).length + " files / " + atts.length + " quizzes");
+    // a quiz writes through to its file
+    click(D.querySelector('.tab[data-tab="home"]')); await sleep(300);
+    click(D.querySelector('.tile[data-go="start"]')); await sleep(400);
+    btn(rowButtons("bankList").find(r => r.title === "qus_input_5"), "Start").click(); await sleep(400);
+    D.querySelectorAll(".qblock")[0].querySelectorAll("input")[0].click(); await sleep(1800);
+    files = await folderFiles();
+    const live = files.find(f => f.data.attempt.status === "in_progress" && f.data.attempt.answers.filter(a => a !== null).length === 1 && f.data.bank.name === "qus_input_5");
+    check("p5 answer reaches the folder", !!live, files.length);
+    check("p5 status says folder", $("saveStatus").getAttribute("aria-label").indexOf("Saved to folder “qq-test-saves”") === 0 && !$("saveStatus").classList.contains("bad"), $("saveStatus").getAttribute("aria-label"));
+    check("p5 no reconnect when connected", !visible("reconnectBtn") && !visible("quizFolderBanner"));
+    // reconcile: a quiz only in the folder comes in; a newer folder copy wins
+    const dir = await opfsDir();
+    const ext = JSON.parse(JSON.stringify(live.data)); ext.attempt.id = "a_external1"; ext.attempt.notes = "made elsewhere"; ext.attempt.updatedAt = Date.now() + 1000;
+    let fh = await dir.getFileHandle("external.json", { create: true }), wr = await fh.createWritable(); await wr.write(JSON.stringify(ext)); await wr.close();
+    const newer = JSON.parse(JSON.stringify(live.data)); newer.attempt.notes = "newer in folder"; newer.attempt.updatedAt = Date.now() + 86400000;
+    fh = await dir.getFileHandle(live.name), wr = await fh.createWritable(); await wr.write(JSON.stringify(newer)); await wr.close();
+    await (await dir.getFileHandle("notes.txt.crswap", { create: true }).then(h => h.createWritable())).close();
+    click(D.querySelector('.quizbar [data-go="home"]')); await sleep(300);
+    await loadApp("fa"); await sleep(800);
+    atts = await idbAll("attempts");
+    check("p5 crswap temp file ignored", !visible("homeFolderBanner") && (await folderFiles()).length > 0);
+    check("p5 folder-only quiz imported", atts.some(a => a.id === "a_external1" && a.notes === "made elsewhere"));
+    check("p5 newer folder copy wins", atts.find(a => a.id === live.data.attempt.id).notes === "newer in folder");
+    // needs permission again -> prominent Reconnect
+    W.localStorage.setItem("qqtest:perm", "prompt");
+    await loadApp("fa");
+    check("p5 home banner when permission needed", visible("homeFolderBanner") && $("homeFolderBanner").textContent.indexOf("needs permission again") > 0 && $("homeFolderBanner").querySelector("button").textContent === "Reconnect");
+    click(D.querySelector('.tile[data-go="resume"]')); await sleep(400);
+    btn(rowButtons("resumeList").find(r => r.title === "qus_input_5"), "Resume").click(); await sleep(400);
+    check("p5 quiz shows reconnect", visible("reconnectBtn") && visible("quizFolderBanner") && $("saveStatus").classList.contains("bad") && txt("saveStatus").indexOf("Saved in browser only") >= 0, txt("saveStatus"));
+    W.localStorage.setItem("qqtest:request", "prompt");
+    click("reconnectBtn"); await sleep(400);
+    check("p5 dismissed prompt keeps the button", visible("reconnectBtn") && visible("quizFolderBanner"));
+    W.localStorage.removeItem("qqtest:request");
+    click("reconnectBtn"); await sleep(1500);
+    check("p5 reconnect", !visible("reconnectBtn") && !visible("quizFolderBanner") && !$("saveStatus").classList.contains("bad"));
+    // deleting a quiz removes its file and it doesn't come back
+    click(D.querySelector('.quizbar [data-go="home"]')); await sleep(300);
+    click(D.querySelector('.tile[data-go="resume"]')); await sleep(400);
+    const extRow = rowButtons("resumeList").find(r => r.meta.indexOf("1 of 5 answered") === 0 && r.title === "qus_input_5");
+    const before = (await folderFiles()).length;
+    const extName = (await folderFiles()).find(f => f.data.attempt.id === "a_external1").name;
+    // delete the external quiz via its row (find by id through the store order: newest first -> pick by notes)
+    const resumeAtts = (await idbAll("attempts")).filter(a => a.status !== "submitted").sort((a, b) => b.updatedAt - a.updatedAt);
+    const extIdx = resumeAtts.findIndex(a => a.id === "a_external1");
+    btn(rowButtons("resumeList")[extIdx], "Delete").click(); await sleep(800);
+    files = await folderFiles();
+    check("p5 delete removes file", files.length === before - 1 && !files.some(f => f.name === extName), files.length + " vs " + before);
+    fh = await dir.getFileHandle("external.json", { create: true }), wr = await fh.createWritable(); await wr.write(JSON.stringify(ext)); await wr.close();
+    await loadApp("fa"); await sleep(800);
+    check("p5 tombstone stops re-import", !(await idbAll("attempts")).some(a => a.id === "a_external1") && !(await folderFiles()).some(f => f.name === "external.json"));
+    // two tabs on the same quiz
+    click(D.querySelector('.tile[data-go="resume"]')); await sleep(400);
+    btn(rowButtons("resumeList").find(r => r.title === "qus_input_5"), "Resume").click(); await sleep(500);
+    const WA = W, DA = D;
+    await loadApp("fb");
+    click(D.querySelector('.tile[data-go="resume"]')); await sleep(400);
+    btn(rowButtons("resumeList").find(r => r.title === "qus_input_5"), "Resume").click(); await sleep(800);
+    check("p5 first tab pauses", DA.getElementById("tabPaused").open === true && D.getElementById("tabPaused").open === false);
+    DA.getElementById("useHereBtn").click(); await sleep(800);
+    check("p5 use it here", DA.getElementById("tabPaused").open === false && D.getElementById("tabPaused").open === true);
+    D.getElementById("pausedHomeBtn").click(); await sleep(300);
+    check("p5 paused tab can go home", D.getElementById("tabPaused").open === false && !D.getElementById("homeScreen").classList.contains("hidden"));
+    document.getElementById("fb").remove();
+    W = WA; D = DA;
+    // folder disappears while linked
+    click(D.querySelector('.quizbar [data-go="home"]')); await sleep(300);
+    await (await navigator.storage.getDirectory()).removeEntry("qq-test-saves", { recursive: true });
+    click(D.querySelector('.tile[data-go="resume"]')); await sleep(400);
+    btn(rowButtons("resumeList").find(r => r.title === "qus_input_5"), "Resume").click(); await sleep(400);
+    D.querySelectorAll(".qblock")[1].querySelectorAll("input")[0].click(); await sleep(1800);
+    check("p5 missing folder warning", visible("quizFolderBanner") && $("quizFolderBanner").textContent.indexOf("Can't find your saves folder") === 0 && $("reconnectBtn").textContent === "Choose folder", $("quizFolderBanner").textContent);
+    // unlink and clean up
+    click(D.querySelector('.tab[data-tab="settings"]')); await sleep(300);
+    click("unlinkFolderBtn"); await sleep(400);
+    check("p5 unlink", !!$("linkFolderBtn") && !visible("reconnectBtn"));
+    ["qqtest:perm", "qqtest:request"].forEach(k => W.localStorage.removeItem(k));
+    document.getElementById("fa").remove();
+    [W, D] = mainWD;
+    }
+
     // ---- tabs
     click(D.querySelector('.tab[data-tab="help"]')); await sleep(100);
     check("help tab", visible("helpScreen") && D.querySelector('.tab[data-tab="help"]').getAttribute("aria-current") === "page");
