@@ -182,6 +182,84 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     await setFile("importInput", "new.json", JSON.stringify(Object.assign({}, expJson, { version: 4 })), "application/json"); await sleep(300);
     check("newer version error", txt("importError").indexOf("newer version") > 0, txt("importError"));
 
+    // ======== Phase 3 ========
+    // start the 5-question bank (imported above) from the Start screen
+    click(D.querySelector('.tab[data-tab="home"]')); await sleep(300);
+    click(D.querySelector('.tile[data-go="start"]')); await sleep(400);
+    btn(rowButtons("bankList").find(r => r.title === "qus_input_5"), "Start").click(); await sleep(400);
+    check("p3 quiz of 5", visible("quizScreen") && D.querySelectorAll(".qblock").length === 5);
+    check("p3 timer shown", /^⏱ \d+:\d\d$/.test(txt("timerDisplay")) && visible("timerDisplay"), txt("timerDisplay"));
+    check("p3 starts in test mode", txt("modeToggle") === "TEST MODE" && $("qList").classList.contains("mode-test"));
+    check("p3 reveal hidden in test", W.getComputedStyle(D.querySelector(".qreveal")).display === "none");
+    click("modeToggle"); await sleep(100);
+    check("p3 tutor mode on", txt("modeToggle") === "TUTOR MODE" && $("modeToggle").getAttribute("aria-pressed") === "true" && !$("qList").classList.contains("mode-test") && W.getComputedStyle(D.querySelector(".qreveal")).display !== "none");
+    let qb = D.querySelectorAll(".qblock");
+    // Q1: reveal without answering -> not scored
+    qb[0].querySelector(".qreveal").click(); await sleep(100);
+    check("p3 reveal unanswered", qb[0].classList.contains("revealed") && qb[0].querySelector(".revnote").textContent === "Revealed — not scored" && [...qb[0].querySelectorAll("input")].every(i => i.disabled) && qb[0].querySelectorAll(".opt.right").length === 1 && !qb[0].querySelector(".qreveal"));
+    check("p3 counter revealed", txt("answeredCounter") === "0 of 5 answered  -  1 revealed", txt("answeredCounter"));
+    // Q2: answer option 1, then reveal -> counts as given
+    qb[1].querySelectorAll("input")[0].click(); await sleep(50);
+    qb[1].querySelector(".qreveal").click(); await sleep(100);
+    const q2right = qb[1].querySelectorAll(".opt")[0].classList.contains("right");
+    check("p3 reveal answered note", qb[1].querySelector(".revnote").textContent === (q2right ? "Revealed after answering — counts as correct" : "Revealed after answering — counts as incorrect"), qb[1].querySelector(".revnote").textContent);
+    check("p3 answered-then-revealed locks", qb[1].querySelectorAll("input")[1].disabled && (q2right || qb[1].querySelectorAll(".opt")[0].classList.contains("wrong")));
+    // Q3: answered normally; Q4 flagged; Q5 unanswered
+    qb[2].querySelectorAll("input")[0].click();
+    qb[3].querySelector(".qflagbtn").click(); await sleep(200);
+    check("p3 counter mix", txt("answeredCounter") === "2 of 5 answered  -  1 revealed  -  1 flagged", txt("answeredCounter"));
+    check("p3 unanswered note excludes revealed", txt("unansweredNote") === "2 questions still unanswered.", txt("unansweredNote"));
+    click("modeToggle"); await sleep(100);
+    check("p3 back to test keeps reveals", txt("modeToggle") === "TEST MODE" && qb[0].classList.contains("revealed") && W.getComputedStyle(qb[2].querySelector(".qreveal")).display === "none");
+    // Help from the quiz, then back
+    click("quizHelpBtn"); await sleep(200);
+    check("p3 help from quiz", visible("helpScreen") && visible("helpBackBar"));
+    click("helpBackBtn"); await sleep(200);
+    check("p3 back to quiz", visible("quizScreen") && D.querySelectorAll(".qblock")[0].classList.contains("revealed"));
+    await sleep(2200);
+    check("p3 timer counts", txt("timerDisplay") !== "⏱ 0:00", txt("timerDisplay"));
+    // export carries revealed + elapsed + mode
+    click("exportBtn"); await sleep(300);
+    const p3exp = JSON.parse(await (await fetch(captured[captured.length - 1].href)).text());
+    check("p3 export revealed", p3exp.attempt.revealed[0] && p3exp.attempt.revealed[0].answerBefore === null && p3exp.attempt.revealed[1].answerBefore !== null && p3exp.attempt.revealed[2] === null);
+    check("p3 export elapsed", p3exp.attempt.elapsedMs > 1500, p3exp.attempt.elapsedMs);
+    check("p3 export mode", p3exp.attempt.mode === "test" && p3exp.attempt.retake === null);
+    // browser Back from the quiz goes Home; resume restores reveal state
+    W.history.back(); await sleep(500);
+    check("p3 back button -> home", visible("homeScreen"), [...D.querySelectorAll("section")].filter(s => !s.classList.contains("hidden")).map(s => s.id).join(","));
+    click(D.querySelector('.tile[data-go="resume"]')); await sleep(400);
+    btn(rowButtons("resumeList").find(r => r.title === "qus_input_5"), "Resume").click(); await sleep(300);
+    qb = D.querySelectorAll(".qblock");
+    check("p3 resume keeps reveals", qb[0].classList.contains("revealed") && qb[1].classList.contains("revealed") && !qb[2].classList.contains("revealed") && [...qb[1].querySelectorAll("input")].every(i => i.disabled));
+    // submit: Q1 not scored
+    click("submitBtn"); await sleep(500);
+    check("p3 score excludes revealed", /^\d of 4 correct · 1 revealed \(not scored\)$/.test(txt("scoreFrac")), txt("scoreFrac"));
+    check("p3 time in header", / · time \d+:\d\d$/.test(txt("scoreWhere")), txt("scoreWhere"));
+    check("p3 revealed in review list", [...D.querySelectorAll("#missedList .revtag")].some(t => t.textContent === "Revealed — not scored"));
+    check("p3 retake flagged count", txt("retakeFlaggedBtn") === "Flagged (1)" && !$("retakeFlaggedBtn").disabled, txt("retakeFlaggedBtn"));
+    const missedN = parseInt(txt("retakeMissedBtn").match(/\((\d+)\)/)[1], 10);
+    check("p3 retake missed count", missedN >= 3 && missedN === D.querySelectorAll("#missedList .missed").length, txt("retakeMissedBtn"));
+    check("p3 trends hidden with 1 attempt", !visible("trendSection"));
+    // retake flagged -> 1-question attempt
+    click("retakeFlaggedBtn"); await sleep(400);
+    check("p3 retake flagged quiz", visible("quizScreen") && D.querySelectorAll(".qblock").length === 1 && txt("quizName") === "qus_input_5 · flagged questions", txt("quizName"));
+    click("submitBtn"); await sleep(500);
+    check("p3 retake result title", txt("scoreWhere").indexOf("qus_input_5 · flagged questions · submitted") === 0, txt("scoreWhere"));
+    check("p3 trends ignore retakes", !visible("trendSection"));
+    // second full attempt -> trends appear
+    click("retakeBtn"); await sleep(400);
+    check("p3 full retake", D.querySelectorAll(".qblock").length === 5 && txt("quizName") === "qus_input_5");
+    D.querySelectorAll(".qblock").forEach(b => b.querySelectorAll("input")[0].click()); await sleep(200);
+    click("submitBtn"); await sleep(700);
+    check("p3 trends shown", visible("trendSection") && D.querySelectorAll("#trendList .trow").length >= 2 && D.querySelector("#trendList .trow.overall").querySelectorAll(".chip").length === 2, D.querySelectorAll("#trendList .trow").length);
+    check("p3 trend current chip", D.querySelector("#trendList .trow.overall .chip:last-child").classList.contains("now"));
+    // review list names the retake
+    click(D.querySelector('#resultsScreen [data-go="home"]')); await sleep(300);
+    click(D.querySelector('.tile[data-go="review"]')); await sleep(400);
+    check("p3 review list retake title", rowButtons("reviewList").some(r => r.title === "qus_input_5 · flagged questions"), rowButtons("reviewList").map(r => r.title).join("|"));
+    W.history.back(); await sleep(400);
+    check("p3 back from review -> home", visible("homeScreen"));
+
     // ---- tabs
     click(D.querySelector('.tab[data-tab="help"]')); await sleep(100);
     check("help tab", visible("helpScreen") && D.querySelector('.tab[data-tab="help"]').getAttribute("aria-current") === "page");

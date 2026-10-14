@@ -239,7 +239,18 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
     - **Autosave:** answers and flags save immediately, notes after 500 ms, and pending saves flush on leaving the quiz, hiding the tab or closing it. The quiz header shows "✓ Saved in browser · just now". **Export backup** is in the quiz, the notes dock, Results, and each Resume/Review row.
     - The shared blocks `QQ-SHARED:csv` and `QQ-SHARED:save-format` are fenced for Lite. The commented-out dead code from v2 wasn't carried over (it's in git history).
     - **Regression harness:** [test-data/harness/app_harness.html](../test-data/harness/app_harness.html) (how to run is at the top of the file). It runs 56 checks covering every flow above, against both IndexedDB and the localStorage fallback. Rerun it after each phase and extend it as features land.
-- [ ] **3. Quiz features:** Tutor/Test toggle + Show answer, timer, retake missed/flagged, category trends, Help from the quiz screen.
+- [x] **3. Quiz features:** Tutor/Test toggle + Show answer, timer, retake missed/flagged, category trends, Help from the quiz screen.
+  - Done 2026-10-14. Notes:
+    - **Tutor mode:** a "TEST MODE / TUTOR MODE" tab sits above NOTES in the side dock. Tutor mode shows a Show answer button on each question. Switching back to Test hides the buttons; revealed questions stay revealed and locked. `attempt.mode` holds the current toggle.
+    - **Settings stub:** `settings.showAnswer` false hides the toggle and every Show answer button. Settings are read from localStorage `quizQrusher:settings` with defaults `{showAnswer: true, timer: true, focusCutoff: 0.7}`; Phase 4 adds the UI.
+    - **Reveal:** marks the correct option ("Correct answer") and a wrong pick ("Your answer"), and adds a note: "Revealed — not scored" or "Revealed after answering — counts as correct/incorrect". `revealed[i] = {at, answerBefore}`.
+    - **Scoring:** revealed with no answer → excluded and listed as "Revealed — not scored". Answered before the reveal → counts as given. The correct-before-reveal case was **implemented as assumed (counts as correct); still unconfirmed**, see open item 3; it's a one-line change in `computeResults`/`revealExcluded`. Results read "X of Y correct · Z revealed (not scored)". `results.total` = every question, `results.scored` = the scored ones.
+    - **Timer:** counts only while the quiz is on screen and the tab is visible. It's saved in `elapsedMs` (also every 60 s), shown as ⏱ in the quiz bar and as "time m:ss" on Results. `settings.timer` false hides it; time is still tracked.
+    - **Retake:** All / Missed / Flagged / Missed + flagged, with counts, on Results (and so on Review). "Missed" = wrong, unanswered or revealed. A subset retake is a new attempt with `retake: {of, kind}`, an optional field added to the save format (older files simply don't have it). Its title reads "Bank · flagged questions".
+    - **Category trends:** on Results/Review once a bank has 2+ submitted *full* attempts (subset retakes are left out because they'd skew every category). Shows the last 6 as % chips, oldest to newest, with the viewed attempt outlined and the change since the previous attempt.
+    - **Help from the quiz:** a Help link in the quiz bar; the Help screen then shows "← Back to quiz".
+    - **Browser Back button (user request):** from any screen, Back returns to Home instead of leaving the app. One history entry sits on top of Home while another screen shows.
+    - Harness: 90 checks. `test-data/harness/cdp_shot.py` takes screenshots of app states driven in real time.
 - [ ] **4. Settings + theming:** move all colors to tokens, the Settings tab, the unsupported-browser dialog.
 - [ ] **5. Saves folder** (Chrome/Edge): link, reconnect, debounced writes, reconciliation, multi-tab safety, status line.
 - [ ] **6. Lite:**
@@ -265,7 +276,7 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
 ## 5. Open items (ask the user when you reach them)
 1. **Google Form link (Phase 7):** the user is creating it. If prefilling is wanted, the form needs "App version" and "Browser" short-answer fields. Use a placeholder until the link arrives.
 2. **GoatCounter site code (Phase 7):** the user needs an account at goatcounter.com. Use a placeholder until then.
-3. **Show-answer edge case:** a correct answer given before the reveal is assumed to count as correct (§2 Quiz features). Confirm when building Phase 3.
+3. **Show-answer edge case:** a correct answer given before the reveal is assumed to count as correct (§2 Quiz features). Built that way in Phase 3. Asked on 2026-10-14; not answered yet.
 
 Resolved on 2026-10-14:
 - `gh` is logged in.

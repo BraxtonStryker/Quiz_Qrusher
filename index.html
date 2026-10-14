@@ -180,6 +180,25 @@
   .qflagbtn:hover{opacity:1; background:var(--navy-soft)}
   .qflagbtn.on{opacity:1; color:var(--bad); background:var(--bad-soft)}
   .qblock.flagged{border-color:var(--bad)}
+  .qhead .grow{flex:1}                                              /*v3.0 - pushes Show answer + flag to the right*/
+  .qhead .qflagbtn{margin-left:0}
+
+  /* ---------- Tutor mode: Show answer ---------- */ /*v3.0*/
+  .qreveal{border:1px solid var(--line); background:var(--surface); color:var(--accent); font-size:12.5px; font-weight:650; padding:4px 11px; border-radius:999px}
+  .qreveal:hover{background:var(--accent-soft); border-color:var(--accent)}
+  #qList.mode-test .qreveal{display:none}
+  .qblock.revealed .opt{cursor:default}
+  .qblock.revealed .opt:hover{border-color:var(--line)}
+  .opt.right, .qblock.revealed .opt.right:hover{border-color:var(--good); background:var(--good-soft)}
+  .opt.wrong, .qblock.revealed .opt.wrong:hover{border-color:var(--bad); background:var(--bad-soft)}
+  .opt.right .radio{border-color:var(--good)}
+  .opt.wrong .radio{border-color:var(--bad)} .opt.wrong .radio::after{background:var(--bad)}
+  .otag{display:inline-block; margin-left:8px; font-size:11.5px; font-weight:700; padding:1px 7px; border-radius:999px; vertical-align:1px}
+  .opt.right .otag{color:var(--good); border:1px solid var(--good)}
+  .opt.wrong .otag{color:var(--bad); border:1px solid var(--bad)}
+  .revnote{margin-top:12px; font-size:13.5px; font-weight:600; color:var(--muted)}
+  .revnote.good{color:var(--good)} .revnote.bad{color:var(--bad)}
+  .timer{font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; font-weight:600}
 
   /* ---------- Notes dock ---------- */
   #noteDock{position:fixed; right:0; top:0; height:100vh; z-index:30; display:flex; align-items:center; pointer-events:none}
@@ -189,6 +208,8 @@
     font-size:13px; font-weight:600; letter-spacing:.04em; padding:16px 7px; border-radius:10px 0 0 10px; box-shadow:var(--shadow);
   }
   .notetab:hover{background:var(--surface-2)}
+  .docktabs{display:flex; flex-direction:column; gap:8px; align-items:flex-end}  /*v3.0 - mode toggle stacked above Notes*/
+  .notetab.modetab[aria-pressed="true"]{background:var(--accent); color:var(--on-accent); border-color:var(--accent)}
   .notepanel{
     width:320px; max-width:86vw; max-height:80vh; display:flex; flex-direction:column; gap:10px;
     padding:14px; border-radius:var(--radius) 0 0 var(--radius); border-right:none;
@@ -240,6 +261,22 @@
   .fu-row .linkbtn{margin-bottom:9px}
 
   .results-actions{display:flex; flex-wrap:wrap; gap:10px; margin-top:20px}
+  .retakes{padding:18px 20px}                                         /*v3.0*/
+  .retake-row{display:flex; flex-wrap:wrap; gap:8px}
+  .missed .mtag .revtag{margin-left:8px; color:var(--warn)}          /*v3.0*/
+
+  /* ---------- Category trends ---------- */ /*v3.0*/
+  .trow{display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line)}
+  .trow:last-child{border-bottom:none}
+  .trow.overall{background:var(--surface-2)}
+  .tname{flex:1; min-width:0; font-weight:600; font-size:14.5px; overflow-wrap:anywhere}
+  .chips{display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end}
+  .chip{font-size:12px; font-variant-numeric:tabular-nums; padding:2px 7px; border-radius:6px; background:var(--surface-2); border:1px solid var(--line); color:var(--muted); min-width:40px; text-align:center}
+  .chip.now{border-color:var(--accent); color:var(--ink); font-weight:700}
+  .delta{font-size:12.5px; font-weight:700; min-width:44px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums}
+  .delta.up{color:var(--good)} .delta.down{color:var(--bad)}
+  .tnote{padding:10px 16px; font-size:12.5px; color:var(--muted); border-top:1px solid var(--line)}
+  @media (max-width:560px){ .trow{flex-wrap:wrap} .tname{flex-basis:100%} .chips{justify-content:flex-start; flex:1} }
 
   @media (max-width:480px){
     .hero{padding:28px 20px 24px} .hero h1{font-size:24px}
@@ -384,12 +421,14 @@
       <div class="quizbar"> <!--v3.0-->
         <button class="linkbtn back" type="button" data-go="home">&larr; Home</button>
         <span class="quizname" id="quizName"></span>
+        <span class="timer" id="timerDisplay" title="Time spent on this quiz"></span>
+        <button class="linkbtn" id="quizHelpBtn" type="button">Help</button>
         <span class="savestat" id="saveStatus" role="status"></span>
       </div>
       <div class="progress"><span id="progressFill"></span></div>
       <div class="qmeta">
         <span class="counter" id="answeredCounter">0 of 0 answered</span>
-        <span class="shuffled">Options shuffled</span>
+        <span class="shuffled" id="modeLabel">Options shuffled</span>
       </div>
     </div>
 
@@ -428,6 +467,22 @@
     <div class="section-title" id="missedTitle">Questions to review</div>
     <div class="card" id="missedList"></div>
 
+    <div id="trendSection" class="hidden"> <!--v3.0-->
+      <div class="section-title">Category trends</div>
+      <div class="card" id="trendList"></div>
+    </div>
+
+    <div class="section-title">Retake</div> <!--v3.0-->
+    <div class="card retakes">
+      <div class="fu-sub">Starts a new attempt with a fresh shuffle.</div>
+      <div class="retake-row">
+        <button class="btn" id="retakeBtn" type="button">All questions</button>
+        <button class="btn subtle" id="retakeMissedBtn" type="button">Missed</button>
+        <button class="btn subtle" id="retakeFlaggedBtn" type="button">Flagged</button>
+        <button class="btn subtle" id="retakeBothBtn" type="button">Missed + flagged</button>
+      </div>
+    </div>
+
     <div class="fu card">
       <div class="fu-title">Follow-up request</div>
       <div class="fu-sub">Builds a filled-in remediation directive (.md) from your misses, ready to hand to a question-generation model.</div>
@@ -451,8 +506,7 @@
       <button class="btn subtle" id="downloadTxtBtn" type="button">Quiz Report (.txt)</button>
       <button class="btn subtle" id="downloadCsvBtn" type="button">Missed Questions (.csv)</button>
       <button class="btn subtle" id="resultsExportBtn" type="button">Export backup (.json)</button> <!--v3.0-->
-      <button class="btn ghost" id="retakeBtn" type="button">Retake (reshuffled)</button>
-      <button class="btn ghost" type="button" data-go="start">New quiz</button> <!--v3.0 - was "New file"-->
+      <button class="btn ghost" type="button" data-go="start">New quiz</button> <!--v3.0 - was "New file"; Retake moved to its own card-->
     </div>
   </section>
 
@@ -464,6 +518,7 @@
     </div>
   </section>
   <section id="helpScreen" class="hidden">
+    <div class="backbar hidden" id="helpBackBar"><button class="linkbtn back" id="helpBackBtn" type="button">&larr; Back to quiz</button></div> <!--v3.0-->
     <div class="card hero placeholder">
       <h1>Help</h1>
       <p class="muted">The full guide is being rebuilt for version 3. Quick start:</p>
@@ -492,7 +547,10 @@
 
 <!-- ====== NOTES DOCK (fixed, follows scroll) ====== v2.3.2 -->
 <div id="noteDock" class="hidden">
-  <button class="notetab" id="noteToggle" type="button" aria-expanded="false" aria-controls="notePanel">NOTES</button>
+  <div class="docktabs"> <!--v3.0 - Tutor/Test toggle next to Notes-->
+    <button class="notetab modetab" id="modeToggle" type="button" aria-pressed="false" title="Switch between Test mode and Tutor mode">TEST MODE</button>
+    <button class="notetab" id="noteToggle" type="button" aria-expanded="false" aria-controls="notePanel">NOTES</button>
+  </div>
   <aside class="card notepanel hidden" id="notePanel" aria-label="Notes">
     <div class="notehead">
       <button class="btn" id="noteExportBtn" type="button">Export backup</button> <!--v3.0 - was "Save current state"-->
@@ -509,10 +567,22 @@
 
   var APP_VERSION = "3.0";              //v3.0
   var NS = "quizQrusher:";              //v3.0 - every GitHub Pages project of this user shares one origin, so namespace all keys
-  var FOCUS_CUTOFF = 0.7;               //v3.0 - becomes a setting in Phase 4
+
+  // Settings: read here, edited by the Settings tab (Phase 4). Unknown keys fall back to the defaults. //v3.0
+  var SETTINGS_DEFAULTS = { showAnswer: true, timer: true, focusCutoff: 0.7 };
+  function loadSettings(){
+    var s = {}, out = {};
+    try { s = JSON.parse(localStorage.getItem(NS + "settings")) || {}; } catch (e){}
+    Object.keys(SETTINGS_DEFAULTS).forEach(function(k){ out[k] = k in s ? s[k] : SETTINGS_DEFAULTS[k]; });
+    return out;
+  }
+  var settings = loadSettings();
 
   var questions = [];   // {id, category, text, options:[{n,text}], correct, display:[{n,text}], flagged}
   var answers = [];     // selected ORIGINAL option number per question (or null)
+  var revealed = [];    // per question: null, or {at, answerBefore} once Show answer was used //v3.0
+  var retakeSets = null;  // question ids for Retake missed / flagged / both, from the results on screen //v3.0
+  var timerStart = 0;     // performance.now() while the quiz timer runs, else 0 //v3.0
   var lastResults = null;
   var memoryLastSig = {}; // in-memory fallback for non-repeat guarantee
   var scrambleTick = 0;   // monotonic, so successive scrambles differ regardless of the clock
@@ -663,7 +733,8 @@
       attempt: {
         id: attempt.id, createdAt: attempt.createdAt, updatedAt: attempt.updatedAt, status: attempt.status, mode: attempt.mode,
         questionOrder: attempt.questionOrder, optionOrder: attempt.optionOrder, answers: attempt.answers, flags: attempt.flags,
-        revealed: attempt.revealed, notes: attempt.notes, elapsedMs: attempt.elapsedMs, results: attempt.results
+        revealed: attempt.revealed, notes: attempt.notes, elapsedMs: attempt.elapsedMs, results: attempt.results,
+        retake: attempt.retake || null    // optional: {of: parent attempt id, kind: "missed"|"flagged"|"both"}
       }
     };
   }
@@ -687,7 +758,8 @@
         status: a.status === "submitted" ? "submitted" : "in_progress", mode: a.mode === "tutor" ? "tutor" : "test",
         questionOrder: a.questionOrder.slice(), optionOrder: fill(a.optionOrder, []), answers: fill(a.answers, null),
         flags: fill(a.flags, 0), revealed: fill(a.revealed, null), notes: typeof a.notes === "string" ? a.notes : "",
-        elapsedMs: a.elapsedMs || 0, results: a.results || null
+        elapsedMs: a.elapsedMs || 0, results: a.results || null,
+        retake: a.retake && a.retake.kind ? { of: String(a.retake.of || ""), kind: String(a.retake.kind) } : null
       }
     };
   }
@@ -731,7 +803,7 @@
     return {
       id: "v2-" + state.csvHash + "-" + t, createdAt: t, updatedAt: t, status: "in_progress", mode: "test",
       questionOrder: state.questionOrder.slice(), optionOrder: out.optionOrder, answers: out.answers, flags: out.flags,
-      revealed: out.revealed, notes: typeof state.notes === "string" ? state.notes : "", elapsedMs: 0, results: null
+      revealed: out.revealed, notes: typeof state.notes === "string" ? state.notes : "", elapsedMs: 0, results: null, retake: null
     };
   }
   /* === /QQ-SHARED === */
@@ -870,8 +942,10 @@
   function newAttempt(bank){
     var now = Date.now();
     return { id: uid("a"), bankId: bank.id, createdAt: now, updatedAt: now, status: "in_progress", mode: "test",
-             questionOrder: [], optionOrder: [], answers: [], flags: [], revealed: [], notes: "", elapsedMs: 0, results: null };
+             questionOrder: [], optionOrder: [], answers: [], flags: [], revealed: [], notes: "", elapsedMs: 0, results: null, retake: null };
   }
+  var RETAKE_LABEL = { missed: "missed questions", flagged: "flagged questions", both: "missed + flagged" }; //v3.0
+  function attemptTitle(bankName, a){ return bankName + (a.retake && RETAKE_LABEL[a.retake.kind] ? " · " + RETAKE_LABEL[a.retake.kind] : ""); }
 
   // Rebuild the displayed questions for an attempt from its bank. Generalizes v2.3.2's restoreSaveCode.
   function hydrate(bank, attempt){
@@ -899,7 +973,11 @@
       if (a === null || a === undefined) return null;
       return q.options.some(function(o){ return o.n === a; }) ? a : null;
     });
-    return { questions: qs, answers: ans };
+    var rev = qs.map(function(q, i){ //v3.0
+      var r = attempt.revealed ? attempt.revealed[i] : null;
+      return r && typeof r === "object" ? { at: r.at || 0, answerBefore: r.answerBefore == null ? null : r.answerBefore } : null;
+    });
+    return { questions: qs, answers: ans, revealed: rev };
   }
 
   /* ---------- Autosave ---------- */ //v3.0 - replaces the v2 resume code
@@ -911,9 +989,31 @@
     a.optionOrder = questions.map(function(q){ return q.display.map(function(o){ return o.n; }); });
     a.answers = answers.slice();
     a.flags = questions.map(function(q){ return q.flagged ? 1 : 0; });
-    if (!a.revealed || a.revealed.length !== questions.length) a.revealed = questions.map(function(){ return null; });
+    a.revealed = questions.map(function(q, i){ return revealed[i] || null; }); //v3.0
     a.notes = notesText;
+    if (timerStart){ var now = performance.now(); a.elapsedMs = (a.elapsedMs || 0) + (now - timerStart); timerStart = now; } //v3.0 - fold running time in
     a.updatedAt = Date.now();
+  }
+
+  /* ---------- Timer: time spent with the quiz on screen ---------- */ //v3.0
+  function quizOnScreen(){ return !el("quizScreen").classList.contains("hidden"); }
+  function timerResume(){
+    if (!timerStart && cur && cur.attempt.status !== "submitted" && quizOnScreen() && document.visibilityState === "visible") timerStart = performance.now();
+  }
+  function timerPause(){
+    if (timerStart && cur){ cur.attempt.elapsedMs = (cur.attempt.elapsedMs || 0) + (performance.now() - timerStart); }
+    timerStart = 0;
+  }
+  function elapsedNow(){ return cur ? (cur.attempt.elapsedMs || 0) + (timerStart ? performance.now() - timerStart : 0) : 0; }
+  function fmtDuration(ms){
+    var s = Math.floor((ms || 0) / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+    s = s % 60;
+    return (h ? h + ":" + pad(m) : m) + ":" + pad(s);
+  }
+  function renderTimer(){
+    var t = el("timerDisplay");
+    t.classList.toggle("hidden", !settings.timer);
+    t.textContent = "⏱ " + fmtDuration(elapsedNow());
   }
   function saveSoon(delay){
     if (!cur) return;
@@ -945,7 +1045,7 @@
   var TAB_OF = { builderScreen: "builder", helpScreen: "help", settingsScreen: "settings", feedbackScreen: "feedback" }; // everything else is under Home
 
   function show(id){
-    if (!el("quizScreen").classList.contains("hidden") && id !== "quizScreen" && cur) saveNow(); //v3.0 - flush notes before leaving the quiz
+    if (quizOnScreen() && id !== "quizScreen" && cur){ timerPause(); saveNow(); } //v3.0 - stop the clock and flush notes before leaving the quiz
     SCREENS.forEach(function(s){ el(s).classList.toggle("hidden", s !== id); });
     var tab = TAB_OF[id] || "home";
     Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(t){
@@ -953,8 +1053,26 @@
     });
     el("noteDock").classList.toggle("hidden", id !== "quizScreen"); //v2.3.2
     if (id !== "quizScreen") setNotesOpen(false);                   //v2.3.2
+    if (id === "helpScreen") el("helpBackBar").classList.toggle("hidden", !(cur && cur.attempt.status !== "submitted")); //v3.0
+    if (id === "quizScreen"){ timerResume(); renderTimer(); }       //v3.0
+    syncHistory(id === "homeScreen");                               //v3.0
     window.scrollTo(0, 0);
   }
+
+  // Browser Back returns to Home instead of leaving the app: one history entry sits on top of Home
+  // while any other screen is showing, and popping it shows Home. //v3.0
+  var ignorePop = false;
+  function syncHistory(atHome){
+    try {
+      var inner = !!(history.state && history.state.qq === "inner");
+      if (!atHome && !inner) history.pushState({ qq: "inner" }, "");
+      else if (atHome && inner){ ignorePop = true; history.back(); }
+    } catch (e){}
+  }
+  window.addEventListener("popstate", function(){
+    if (ignorePop){ ignorePop = false; return; }
+    go("home");
+  });
 
   function go(where){ //v3.0
     if (where === "home"){ show("homeScreen"); refreshHome(); }
@@ -1073,7 +1191,7 @@
           btns.push({ label: "Export", aria: "Export a backup of " + name, onClick: function(){ exportAttempt(bank, a); } });
         }
         btns.push({ label: "Delete", kind: "subtle danger", aria: "Delete this quiz", onClick: function(){ deleteAttempt(a, name, renderResumeList); } });
-        list.appendChild(rowEl(name, meta, btns));
+        list.appendChild(rowEl(attemptTitle(name, a), meta, btns)); //v3.0 - names retakes
       });
     }).catch(function(e){ listError(list, e); });
   }
@@ -1098,7 +1216,7 @@
           btns.push({ label: "Export", aria: "Export a backup of " + name, onClick: function(){ exportAttempt(bank, a); } });
         }
         btns.push({ label: "Delete", kind: "subtle danger", aria: "Delete this quiz", onClick: function(){ deleteAttempt(a, name, renderReviewList); } });
-        list.appendChild(rowEl(name, meta, btns));
+        list.appendChild(rowEl(attemptTitle(name, a), meta, btns)); //v3.0 - names retakes
       });
     }).catch(function(e){ listError(list, e); });
   }
@@ -1138,17 +1256,31 @@
   }
 
   /* ---------- Opening quizzes ---------- */ //v3.0
-  function startNewAttempt(bank){
-    try { questions = buildQuestions(parseCSV(bank.csvText)); }
+  function leaveCurrent(){ if (timerStart){ timerPause(); saveNow(); } } // before cur switches to another attempt
+
+  // subset (optional): { kind: "missed"|"flagged"|"both", ids: [question ids], of: parent attempt id } //v3.0 - Retake missed/flagged
+  function startNewAttempt(bank, subset){
+    var all;
+    try { all = buildQuestions(parseCSV(bank.csvText)); }
     catch (e){ window.alert(e.message); return; }
-    scrambleAll(bank.csvText);
+    if (subset){
+      var need = {};
+      subset.ids.forEach(function(id){ need[id] = (need[id] || 0) + 1; });
+      all = all.filter(function(q){ return need[q.id] > 0 && need[q.id]--; });
+      if (!all.length){ window.alert("There are no questions to retake."); return; }
+    }
+    leaveCurrent();
+    questions = all;
+    scrambleAll(bank.csvText + (subset ? "#" + subset.kind + ":" + subset.ids.join(",") : ""));
     answers = questions.map(function(){ return null; });
+    revealed = questions.map(function(){ return null; });
     questions.forEach(function(q){ q.flagged = false; });
     notesText = ""; el("noteText").value = ""; noteHint();
     cur = { bank: bank, attempt: newAttempt(bank) };
+    if (subset) cur.attempt.retake = { of: subset.of || "", kind: subset.kind };
     lastResults = null; lastSavedAt = 0; saveError = null;
     el("exportStatus").textContent = "";
-    el("quizName").textContent = bank.name;
+    el("quizName").textContent = attemptTitle(bank.name, cur.attempt);
     renderList();
     show("quizScreen");
     saveNow();
@@ -1158,8 +1290,9 @@
     var h;
     try { h = hydrate(bank, attempt); }
     catch (e){ window.alert(e.message); return; }
+    leaveCurrent();
     cur = { bank: bank, attempt: attempt };
-    questions = h.questions; answers = h.answers;
+    questions = h.questions; answers = h.answers; revealed = h.revealed;
     notesText = attempt.notes || ""; el("noteText").value = notesText; noteHint();
     lastSavedAt = attempt.updatedAt || 0; saveError = null;
     el("exportStatus").textContent = "";
@@ -1167,11 +1300,63 @@
       renderResults();
       show("resultsScreen");
     } else {
-      el("quizName").textContent = bank.name;
+      el("quizName").textContent = attemptTitle(bank.name, attempt);
       renderList();
       renderSaveStatus();
       show("quizScreen");
     }
+  }
+
+  /* ---------- Tutor / Test mode ---------- */ //v3.0
+  // Tutor mode adds a Show answer button to each question. Settings can turn the feature off entirely.
+  function tutorAvailable(){ return !!settings.showAnswer; }
+  function applyMode(){
+    var tutor = tutorAvailable() && cur && cur.attempt.mode === "tutor";
+    el("qList").classList.toggle("mode-test", !tutor);
+    var t = el("modeToggle");
+    t.classList.toggle("hidden", !tutorAvailable());
+    t.setAttribute("aria-pressed", tutor ? "true" : "false");
+    t.textContent = tutor ? "TUTOR MODE" : "TEST MODE";
+    t.title = tutor ? "Tutor mode: each question has a Show answer button. Click to switch to Test mode."
+                    : "Test mode. Click to switch to Tutor mode, which adds a Show answer button to each question.";
+    el("modeLabel").textContent = tutor ? "Tutor mode · revealed questions aren't scored" : "Options shuffled";
+  }
+  function toggleMode(){
+    if (!cur || !tutorAvailable()) return;
+    cur.attempt.mode = cur.attempt.mode === "tutor" ? "test" : "tutor";
+    applyMode();
+    saveSoon();
+  }
+
+  // Scoring rule (docs/V3_PLAN.md): a revealed question is not scored, unless an answer was already
+  // given before Show answer was clicked; then it counts as given (wrong -> incorrect, right -> correct).
+  function revealExcluded(i){ return !!revealed[i] && revealed[i].answerBefore === null; }
+  function revealQuestion(i, block){
+    if (revealed[i] || !cur) return;
+    revealed[i] = { at: Date.now(), answerBefore: answers[i] === undefined ? null : answers[i] };
+    paintRevealed(block, questions[i], i);
+    updateProgress();
+    saveSoon();
+  }
+  // Locks the question and marks the correct option (and a wrong pick).
+  function paintRevealed(block, q, i){
+    block.classList.add("revealed");
+    var rb = block.querySelector(".qreveal"); if (rb) rb.parentNode.removeChild(rb);
+    Array.prototype.forEach.call(block.querySelectorAll(".opt"), function(label){
+      var input = label.querySelector("input"), n = parseInt(input.value, 10);
+      input.disabled = true;
+      var tag = null;
+      if (n === q.correct){ label.classList.add("right"); tag = "Correct answer"; }
+      else if (answers[i] === n){ label.classList.add("wrong"); tag = "Your answer"; }
+      if (tag && !label.querySelector(".otag")){ var s = document.createElement("span"); s.className = "otag"; s.textContent = tag; label.querySelector(".otext").appendChild(s); }
+    });
+    var note = block.querySelector(".revnote");
+    if (!note){ note = document.createElement("div"); block.appendChild(note); }
+    var before = revealed[i].answerBefore;
+    note.className = "revnote" + (before === null ? "" : before === q.correct ? " good" : " bad");
+    note.textContent = before === null ? "Revealed — not scored"
+      : before === q.correct ? "Revealed after answering — counts as correct"
+      : "Revealed after answering — counts as incorrect";
   }
 
   /* ---------- Render scrollable list ---------- */
@@ -1191,6 +1376,15 @@
       var head = document.createElement("div"); head.className = "qhead";
       var idx = document.createElement("span"); idx.className = "qidx"; idx.textContent = "Q" + (i + 1);
       head.appendChild(idx); // category tag hidden since v2.2 (a setting in Phase 4)
+      var grow = document.createElement("span"); grow.className = "grow"; head.appendChild(grow); //v3.0
+
+      if (!revealed[i]){ //v3.0 - Show answer (only visible in Tutor mode)
+        var revBtn = document.createElement("button");
+        revBtn.type = "button"; revBtn.className = "qreveal"; revBtn.textContent = "Show answer";
+        revBtn.setAttribute("aria-label", "Show the answer to question " + (i + 1));
+        revBtn.addEventListener("click", function(){ revealQuestion(i, block); });
+        head.appendChild(revBtn);
+      }
 
       // flag toggle, right corner of the question box //v2.3.2
       var flagBtn = document.createElement("button");
@@ -1233,18 +1427,25 @@
       });
 
       block.appendChild(head); block.appendChild(qt); block.appendChild(opts);
+      if (revealed[i]) paintRevealed(block, q, i); //v3.0
       list.appendChild(block);
     });
+    applyMode(); //v3.0
     updateProgress();
   }
 
+  function unansweredCount(){ //v3.0 - a question revealed without an answer is locked, so it doesn't count as unanswered
+    return answers.filter(function(a, i){ return a === null && !revealExcluded(i); }).length;
+  }
   function updateProgress(){
     var ans = answers.filter(function(a){ return a !== null; }).length;
-    el("progressFill").style.width = (questions.length ? ans / questions.length * 100 : 0) + "%";
+    var rev = revealed.filter(function(r, i){ return revealExcluded(i); }).length; //v3.0
+    el("progressFill").style.width = (questions.length ? (ans + rev) / questions.length * 100 : 0) + "%";
     var flagged = questions.filter(function(q){ return q.flagged; }).length; //v2.3.2
     el("answeredCounter").textContent = ans + " of " + questions.length + " answered" +
+      (rev ? "  -  " + rev + " revealed" : "") +
       (flagged ? "  -  " + flagged + " flagged" : "");
-    var un = questions.length - ans;
+    var un = unansweredCount();
     el("unansweredNote").textContent = un === 0 ? "All questions answered." : (un + (un === 1 ? " question" : " questions") + " still unanswered.");
   }
 
@@ -1252,7 +1453,7 @@
   function qty(n, word){ return n + " " + word + (n === 1 ? "" : "s"); }
 
   function submitQuiz(){
-    var un = answers.filter(function(a){ return a === null; }).length;
+    var un = unansweredCount(); //v3.0
     var flagged = questions.filter(function(q){ return q.flagged; }).length; // warn about flags too
     if (un > 0 || flagged > 0){
       var parts = [];
@@ -1261,6 +1462,7 @@
       var msg = "You have " + parts.join(" and ") + "." + "\n\n" + "Submit anyway?";
       if (!window.confirm(msg)) return;
     }
+    timerPause();                                   //v3.0
     var res = computeResults();                     //v3.0 - store the outcome with the attempt
     cur.attempt.status = "submitted";
     cur.attempt.results = summarize(res);
@@ -1272,44 +1474,54 @@
   /* ---------- Results ---------- */
   function optionText(q, num){ var f = q.options.filter(function(o){ return o.n === num; })[0]; return f ? f.text : ""; }
 
+  // v3.0 - "total" is now the number of SCORED questions; questions revealed without an answer are left out
+  // (see revealExcluded) and counted in "revealedOut". Category stats use the same rule.
   function computeResults(){
-    var correctCount = 0, cats = {}, missed = [];
+    var correctCount = 0, scored = 0, revealedOut = 0, cats = {}, missed = [];
     questions.forEach(function(q, i){
       var sel = answers[i], ok = sel === q.correct;
-      if (ok) correctCount++;
       if (!cats[q.category]) cats[q.category] = { total: 0, correct: 0 };
+      if (revealExcluded(i)){ //v3.0
+        revealedOut++;
+        missed.push({ index: i, id: q.id, category: q.category, question: q.text, your: null, correct: optionText(q, q.correct), revealed: true });
+        return;
+      }
+      scored++;
+      if (ok) correctCount++;
       cats[q.category].total++; if (ok) cats[q.category].correct++;
-      if (!ok) missed.push({ index: i, category: q.category, question: q.text, your: sel === null ? null : optionText(q, sel), correct: optionText(q, q.correct) });
+      if (!ok) missed.push({ index: i, id: q.id, category: q.category, question: q.text, your: sel === null ? null : optionText(q, sel), correct: optionText(q, q.correct), revealed: !!revealed[i] });
     });
-    return { correctCount: correctCount, total: questions.length, cats: cats, missed: missed };
+    return { correctCount: correctCount, total: scored, all: questions.length, revealedOut: revealedOut, cats: cats, missed: missed };
   }
-  // Summary kept on the attempt for the Review list and (Phase 3) category trends.
-  // "scored" leaves room for Tutor mode, where revealed questions drop out of the score.
+  // Summary kept on the attempt for the Review list and category trends.
   function summarize(res){ //v3.0
     var by = {};
     Object.keys(res.cats).forEach(function(k){ by[k] = { correct: res.cats[k].correct, total: res.cats[k].total }; });
-    return { submittedAt: Date.now(), correct: res.correctCount, total: res.total, scored: res.total, revealed: 0, byCategory: by };
+    return { submittedAt: Date.now(), correct: res.correctCount, total: res.all, scored: res.total, revealed: res.revealedOut, byCategory: by };
   }
+  function pctOf(c, t){ return t ? Math.round(c / t * 100) : 0; }
 
   function renderResults(){
     var res = computeResults(); lastResults = res;
     var pct = res.total ? Math.round(res.correctCount / res.total * 100) : 0;
 
     var sub = cur && cur.attempt.results && cur.attempt.results.submittedAt; //v3.0
-    el("scoreWhere").textContent = cur ? cur.bank.name + (sub ? " · submitted " + when(sub) : "") : "";
-    el("scorePct").textContent = pct + "%";
-    el("scoreFrac").textContent = res.correctCount + " of " + res.total + " correct";
+    el("scoreWhere").textContent = cur ? attemptTitle(cur.bank.name, cur.attempt) + (sub ? " · submitted " + when(sub) : "") +
+      (settings.timer && cur.attempt.elapsedMs ? " · time " + fmtDuration(cur.attempt.elapsedMs) : "") : "";
+    el("scorePct").textContent = res.total ? pct + "%" : "–";
+    el("scoreFrac").textContent = res.correctCount + " of " + res.total + " correct" +
+      (res.revealedOut ? " · " + res.revealedOut + " revealed (not scored)" : ""); //v3.0
     el("scoreMsg").textContent = pct === 100 ? "Perfect run — nothing to review."
       : pct >= 80 ? "Strong. A couple of spots to tighten up."
       : pct >= 60 ? "Solid base. Focus on the flagged categories below."
       : "Plenty to work on — the report below is your study list.";
 
     var catList = el("catList"); catList.innerHTML = "";
-    Object.keys(res.cats).sort(function(a, b){
+    Object.keys(res.cats).filter(function(name){ return res.cats[name].total > 0; }).sort(function(a, b){ //v3.0 - skip all-revealed categories
       var ra = res.cats[a].correct / res.cats[a].total, rb = res.cats[b].correct / res.cats[b].total;
       return ra - rb || a.localeCompare(b);
     }).forEach(function(name){
-      var c = res.cats[name], acc = c.correct / c.total, weak = acc < FOCUS_CUTOFF;
+      var c = res.cats[name], acc = c.correct / c.total, weak = acc < settings.focusCutoff;
       var row = document.createElement("div"); row.className = "catrow";
       row.innerHTML = '<div class="cattop"><span class="catname"></span>' +
         '<span class="catscore">' + c.correct + '/' + c.total + ' &middot; ' + Math.round(acc * 100) + '%</span></div>' +
@@ -1334,6 +1546,7 @@
           '<div class="ans right"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' +
             '<div><span class="lab">Correct:</span> <span class="correctanswer"></span></div></div>';
         d.querySelector(".mtag").textContent = m.category;
+        if (m.revealed){ var rt = document.createElement("span"); rt.className = "revtag"; rt.textContent = m.your === null ? "Revealed — not scored" : "Revealed after answering"; d.querySelector(".mtag").appendChild(rt); } //v3.0
         d.querySelector(".mq").textContent = m.question;
         d.querySelector(".youranswer").textContent = m.your === null ? "Not answered" : m.your;
         d.querySelector(".correctanswer").textContent = m.correct;
@@ -1342,6 +1555,80 @@
     }
 
     el("fuQuantity").value = String(Math.max(5, Math.min(10, res.missed.length || 5)));
+    renderRetakes(res); //v3.0
+    renderTrends();     //v3.0
+  }
+
+  /* ---------- Retake missed / flagged ---------- */ //v3.0
+  function renderRetakes(res){
+    var missedIds = res.missed.map(function(m){ return m.id; });     // wrong, unanswered, or revealed
+    var flaggedIds = questions.filter(function(q){ return q.flagged; }).map(function(q){ return q.id; });
+    var seen = {}, both = [];
+    questions.forEach(function(q, i){
+      var isMissed = res.missed.some(function(m){ return m.index === i; });
+      if ((isMissed || q.flagged) && !seen[i]){ seen[i] = true; both.push(q.id); }
+    });
+    retakeSets = { missed: missedIds, flagged: flaggedIds, both: both };
+    var set = function(id, label, n){ var b = el(id); b.textContent = label + " (" + n + ")"; b.disabled = n === 0; };
+    set("retakeMissedBtn", "Missed", missedIds.length);
+    set("retakeFlaggedBtn", "Flagged", flaggedIds.length);
+    set("retakeBothBtn", "Missed + flagged", both.length);
+  }
+  function retake(kind){
+    if (!cur || !retakeSets || !retakeSets[kind].length) return;
+    startNewAttempt(cur.bank, { kind: kind, ids: retakeSets[kind], of: cur.attempt.id });
+  }
+
+  /* ---------- Category trends across attempts of this bank ---------- */ //v3.0
+  // Uses full attempts only: a retake of just the missed questions would drag every category down.
+  function renderTrends(){
+    var section = el("trendSection");
+    if (!cur || !store){ section.classList.add("hidden"); return; }
+    var bankId = cur.bank.id, viewing = cur.attempt.id;
+    saveChain.then(function(){ return store.getAll("attempts"); }).then(function(atts){
+      if (!cur || cur.bank.id !== bankId) return;
+      var hist = atts.filter(function(a){ return a.bankId === bankId && a.status === "submitted" && !a.retake && a.results && a.results.byCategory; })
+        .sort(function(a, b){ return (a.results.submittedAt || 0) - (b.results.submittedAt || 0); });
+      if (hist.length < 2){ section.classList.add("hidden"); return; }
+      var shown = hist.slice(-6);
+      var list = el("trendList"); list.innerHTML = "";
+      var row = function(name, values, overall){
+        var r = document.createElement("div"); r.className = "trow" + (overall ? " overall" : "");
+        var n = document.createElement("div"); n.className = "tname"; n.textContent = name;
+        var chips = document.createElement("div"); chips.className = "chips";
+        values.forEach(function(v, k){
+          var c = document.createElement("span"); c.className = "chip" + (shown[k].id === viewing ? " now" : "");
+          c.textContent = v == null ? "–" : v + "%";
+          c.title = when(shown[k].results.submittedAt) + (shown[k].id === viewing ? " (this attempt)" : "");
+          chips.appendChild(c);
+        });
+        var last = values[values.length - 1], prev = values[values.length - 2];
+        var d = document.createElement("span"); d.className = "delta";
+        if (last != null && prev != null){
+          var diff = last - prev;
+          d.textContent = diff > 0 ? "+" + diff : diff < 0 ? "−" + Math.abs(diff) : "±0";
+          d.classList.add(diff > 0 ? "up" : diff < 0 ? "down" : "same");
+          d.title = "Change since the previous attempt";
+        }
+        r.appendChild(n); r.appendChild(chips); r.appendChild(d);
+        list.appendChild(r);
+      };
+      row("Overall", shown.map(function(a){ return a.results.scored ? pctOf(a.results.correct, a.results.scored) : null; }), true);
+      var names = {};
+      shown.forEach(function(a){ Object.keys(a.results.byCategory).forEach(function(k){ names[k] = true; }); });
+      var latest = shown[shown.length - 1].results.byCategory;
+      Object.keys(names).sort(function(a, b){
+        var la = latest[a] && latest[a].total ? latest[a].correct / latest[a].total : 2, lb = latest[b] && latest[b].total ? latest[b].correct / latest[b].total : 2;
+        return la - lb || a.localeCompare(b);
+      }).forEach(function(name){
+        row(name, shown.map(function(a){ var c = a.results.byCategory[name]; return c && c.total ? pctOf(c.correct, c.total) : null; }), false);
+      });
+      var note = document.createElement("div"); note.className = "tnote";
+      note.textContent = "Oldest to newest" + (hist.length > shown.length ? " (last " + shown.length + " of " + hist.length + " attempts)" : "") +
+        ". Retakes of missed or flagged questions aren't included.";
+      list.appendChild(note);
+      section.classList.remove("hidden");
+    }).catch(function(){ section.classList.add("hidden"); });
   }
 
   /* ---------- Export helpers ---------- */
@@ -1381,6 +1668,7 @@
     L.push("Source: " + sourceName());
     L.push("");
     L.push("SCORE: " + res.correctCount + " / " + res.total + "  (" + pct + "%)");
+    if (res.revealedOut) L.push("Revealed in Tutor mode (not scored): " + res.revealedOut); //v3.0
     L.push("");
     var focus = Object.keys(res.cats).map(function(name){ var c = res.cats[name]; return { name: name, missed: c.total - c.correct, total: c.total, correct: c.correct }; })
       .filter(function(c){ return c.missed > 0; }).sort(function(a, b){ return b.missed - a.missed || a.name.localeCompare(b.name); });
@@ -1394,7 +1682,7 @@
       L.push("");
       L.push("[" + (i + 1) + "] Category: " + m.category);
       L.push("Q: " + m.question);
-      L.push("Selected (your answer): " + (m.your === null ? "(not answered)" : m.your));
+      L.push("Selected (your answer): " + (m.your === null ? (m.revealed ? "(not answered; answer revealed)" : "(not answered)") : m.your + (m.revealed ? " (then revealed)" : ""))); //v3.0
       L.push("Correct answer: " + m.correct);
     });
     L.push("");
@@ -1459,7 +1747,7 @@
     var concepts = res.missed.length ? "\n" + res.missed.map(function(m){ return "  - (" + m.category + ") " + m.question; }).join("\n") : " None — every question correct.";
     var misc = res.missed.length ? "\n" + res.missed.map(function(m){
         return m.your === null
-          ? "  - " + m.category + ": left unanswered; correct answer is \"" + m.correct + "\"."
+          ? "  - " + m.category + ": " + (m.revealed ? "revealed the answer without attempting" : "left unanswered") + "; correct answer is \"" + m.correct + "\"." //v3.0
           : "  - " + m.category + ": selected \"" + m.your + "\" instead of the correct \"" + m.correct + "\".";
       }).join("\n") : " None.";
     var diff = el("fuDifficulty").value;
@@ -1647,11 +1935,22 @@
     if (!cur){ go("start"); return; }
     startNewAttempt(cur.bank);
   });
+  el("retakeMissedBtn").addEventListener("click", function(){ retake("missed"); });   //v3.0
+  el("retakeFlaggedBtn").addEventListener("click", function(){ retake("flagged"); }); //v3.0
+  el("retakeBothBtn").addEventListener("click", function(){ retake("both"); });       //v3.0
+  el("modeToggle").addEventListener("click", toggleMode);                             //v3.0
+  el("quizHelpBtn").addEventListener("click", function(){ show("helpScreen"); });     //v3.0 - Help from the quiz screen
+  el("helpBackBtn").addEventListener("click", function(){ if (cur) show("quizScreen"); });
 
-  // flush the notes debounce when the tab is hidden or closed //v3.0
-  document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "hidden" && saveTimer) saveNow(); });
-  window.addEventListener("pagehide", function(){ if (saveTimer) saveNow(); });
-  setInterval(function(){ if (!el("quizScreen").classList.contains("hidden")) renderSaveStatus(); }, 20000);
+  // pause the timer and flush pending saves when the tab is hidden or closed //v3.0
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState === "hidden"){ if (timerStart){ timerPause(); saveNow(); } else if (saveTimer) saveNow(); }
+    else timerResume();
+  });
+  window.addEventListener("pagehide", function(){ if (timerStart || saveTimer){ timerPause(); saveNow(); } });
+  setInterval(function(){ if (quizOnScreen()) renderSaveStatus(); }, 20000);
+  setInterval(function(){ if (quizOnScreen()) renderTimer(); }, 1000);               //v3.0
+  setInterval(function(){ if (quizOnScreen() && timerStart) saveNow(); }, 60000);     //v3.0 - keep elapsed time saved
 
   /* ---------- Startup ---------- */ //v3.0
   el("appVersion").textContent = APP_VERSION;
