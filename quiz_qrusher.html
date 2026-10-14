@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quiz Qrusher</title>
+<title>Quiz Qrusher v2.3</title>
 <style>
   :root{
     --bg:#EEF1F5; --surface:#FFFFFF; --surface-2:#F6F8FB;
@@ -150,8 +150,8 @@
   <!-- ====== START ====== -->
   <section id="startScreen">
     <div class="card hero">
-      <h1>Quiz Qrusher</h1>
-      <p class="lede">Load a CSV of questions, take the quiz offline, and get a graded report that flags your weak categories. Option order is reshuffled on every attempt.</p>
+      <h1>Quiz Qrusher v2.3</h1>
+      <p class="lede">Load a CSV of questions, take the quiz offline, and get a graded report that flags your weak categories. Option and question order is reshuffled on every attempt.</p>
 
       <label class="drop" id="dropZone" for="fileInput" tabindex="0" role="button" aria-label="Choose a CSV file">
         <span class="glyph" aria-hidden="true">
@@ -166,7 +166,20 @@
 
       <div id="startError" class="err hidden" role="alert"></div>
 
+      <div id="restoreSection" style="margin-top:20px"> <!--v2.3-->
+        <textarea id="restoreCode" placeholder="Optional: Paste a Resume Code here from a previous session" style="width:100%;height:30px;font-family:monospace;"></textarea>
+        
+        <p class="muted" style="font-size:13px">
+          Load the CSV first.
+          If resuming a quiz, paste the Resume Code.
+          Then click Start Quiz.
+        </p>
+      </div>
+      
+
       <div class="startfoot">
+        <button class="btn" id="startQuizBtn" type="button" disabled> Start Quiz </button>
+        <button class="btn" id="restoreBtn" type="button">Restore Saved Attempt</button>
         <button class="linkbtn" id="templateBtn" type="button">Download an example CSV</button>
         <span class="muted" style="font-size:13px" id="loadedInfo"></span>
       </div>
@@ -174,7 +187,7 @@
   </section>
 
   <!-- ====== QUIZ ====== -->
-  <section id="quizScreen" class="hidden">
+  <!-- <section id="quizScreen" class="hidden">                            // removed in v2.3
     <div class="topbar">
       <div class="progress"><span id="progressFill"></span></div>
       <div class="qmeta">
@@ -188,6 +201,33 @@
     <div class="endbar card">
       <span class="muted" id="unansweredNote"></span>
       <button class="btn" id="submitBtn" type="button">Submit quiz</button>
+    </div>
+  </section> -->
+  <section id="quizScreen" class="hidden"> <!--v2.3-->
+    <div class="topbar">
+      <div class="progress"><span id="progressFill"></span></div>
+      <div class="qmeta">
+        <span class="counter" id="answeredCounter">0 of 0 answered</span>
+        <span class="shuffled">Options shuffled</span>
+      </div>
+    </div>
+
+    <div id="qList"></div>
+
+  <!-- Resume / Save Code -->
+    <div class="card" style="margin-top:20px;padding:16px">
+      <div style="font-weight:600">
+        Resume Code
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+        Copy this code to continue later.
+      </div>
+      <textarea id="saveCode" readonly style="width:100%;height:90px;font-family:monospace;">
+      </textarea>
+    </div>
+    <div class="endbar card">
+        <span class="muted" id="unansweredNote"></span>
+        <button class="btn" id="submitBtn" type="button">Submit quiz</button>
     </div>
   </section>
 
@@ -329,7 +369,7 @@
       if (options.length < 2) continue;
       var correct = parseInt(get(ansCol), 10);
       if (!options.some(function(o){ return o.n === correct; })) continue;
-      out.push({ category: get(catCol) || "Uncategorized", text: qtext, options: options, correct: correct });
+      out.push({id: hashStr((get(catCol) || "Uncategorized") +"|" + qtext +"|" + correct),category: get(catCol) || "Uncategorized",text: qtext,options: options,correct: correct});
     }
     if (out.length === 0) throw new Error("No valid questions found. Check that each row has a question, at least two options, and a correct option number.");
     return out;
@@ -349,25 +389,123 @@
 
   // Grading never depends on display order: the radio value carries the ORIGINAL option number,
   // and q.correct is the ORIGINAL number, so any permutation is safe.
-  function scrambleAll(){
-    var key = String(hashStr(sourceText));
-    var storeKey = "quizQrusher:lastorder:" + key;
-    var prevSig = memoryLastSig[key];
-    try { var stored = localStorage.getItem(storeKey); if (stored != null) prevSig = stored; } catch (e) {}
+  // -------------------------------------------------------------------
+    // -------------------------------------------------------------------
+      // -------------------------------------------------------------------
+        // -------------------------------------------------------------------
+          // -------------------------------------------------------------------
+  //removed in v2.2                         // function scrambleAll(){
+  //   var key = String(hashStr(sourceText));
+  //   var storeKey = "quizQrusher:lastorder:" + key;
+  //   var prevSig = memoryLastSig[key];
+  //   try { var stored = localStorage.getItem(storeKey); if (stored != null) prevSig = stored; } catch (e) {}
 
-    scrambleTick = (scrambleTick + 1) >>> 0;
-    var seedBase = (hashStr(sourceText) ^ (Date.now() >>> 0) ^ Math.imul(scrambleTick, 2654435761)) >>> 0;
-    var sig = "", attempts = 0;
-    do {
-      var rnd = mulberry32((seedBase + attempts * 2654435761) >>> 0);
-      questions.forEach(function(q){ q.display = shuffle(q.options, rnd); });
-      sig = questions.map(function(q){ return q.display.map(function(o){ return o.n; }).join(""); }).join("|");
-      attempts++;
-    } while (sig === prevSig && attempts < 16); // don't repeat last attempt's arrangement
+  //   scrambleTick = (scrambleTick + 1) >>> 0;
+  //   var seedBase = (hashStr(sourceText) ^ (Date.now() >>> 0) ^ Math.imul(scrambleTick, 2654435761)) >>> 0;
+  //   var sig = "", attempts = 0;
+  //   do {
+  //     var rnd = mulberry32((seedBase + attempts * 2654435761) >>> 0);
+  //     questions.forEach(function(q){ q.display = shuffle(q.options, rnd); });
+  //     sig = questions.map(function(q){ return q.display.map(function(o){ return o.n; }).join(""); }).join("|");
+  //     attempts++;
+  //   } while (sig === prevSig && attempts < 16); // don't repeat last attempt's arrangement
 
-    memoryLastSig[key] = sig;
-    try { localStorage.setItem(storeKey, sig); } catch (e) {}
+  //   memoryLastSig[key] = sig;
+  //   try { localStorage.setItem(storeKey, sig); } catch (e) {}
+  // }
+
+  function scrambleAll(){//v2.2
+  var key = String(hashStr(sourceText));
+  var storeKey = "quizQrusher:lastorder:" + key;
+  var prevSig = memoryLastSig[key];
+  try {var stored = localStorage.getItem(storeKey); if (stored != null) prevSig = stored; } catch (e) {}
+
+  scrambleTick = (scrambleTick + 1) >>> 0;
+  var seedBase = (hashStr(sourceText) ^ (Date.now() >>> 0) ^ Math.imul(scrambleTick, 2654435761)) >>> 0;
+  var sig = "", attempts = 0;
+  do {
+    var rnd = mulberry32((seedBase + attempts * 2654435761) >>> 0);
+    // NEW: shuffle question order
+    scrambleQuestions(rnd);
+    // Existing answer shuffling
+    questions.forEach(function(q){
+      q.display = shuffle(q.options, rnd);
+    });
+    // Signature now includes question order + option order
+    sig = questions.map(function(q){
+      return hashStr(q.text) + ":" +
+             q.display.map(function(o){ return o.n; }).join("");
+    }).join("|");
+    attempts++;
+  } while (sig === prevSig && attempts < 16);
+  memoryLastSig[key] = sig;
+  try {
+    localStorage.setItem(storeKey, sig);
+  } catch (e) {}
+}
+
+function generateSaveCode(){//v2.3
+  var state = {version: 1, csvHash: hashStr(sourceText),
+    questionOrder:questions.map(function(q){return q.id;}),
+    optionOrder:questions.map(function(q){return q.display.map(function(o){return o.n;});}),
+    answers: answers,timestamp: Date.now()
+  };
+  return btoa(JSON.stringify(state));
+}
+
+function restoreSaveCode(code){//v2.3
+  var state;
+  try{ state = JSON.parse(atob(code));}
+  catch(e){throw new Error("Invalid save code.");}
+  if(state.csvHash !== hashStr(sourceText)){
+    throw new Error(
+      "Save code does not belong to this CSV."
+    );
   }
+  var lookup = {};
+  questions.forEach(function(q){
+    lookup[q.id] = q;
+  });
+  questions =state.questionOrder.map(function(id){return lookup[id];});
+  questions.forEach(function(q, idx){var order =state.optionOrder[idx];
+    q.display =
+      order.map(function(optNum){
+        return q.options.find(function(o){
+          return o.n === optNum;
+        });
+      });
+  });
+  answers = state.answers.slice();
+  renderList();
+  questions.forEach(function(q, i){
+    if(answers[i] == null) return;
+    var value = String(answers[i]);
+    var radios =
+      document.querySelectorAll(
+        'input[name="q' + i + '"]'
+      );
+    Array.prototype.forEach.call(
+      radios,
+      function(radio){
+        if(radio.value === value){
+          radio.checked = true;
+          var label =
+            radio.closest(".opt");
+          if(label)
+            label.classList.add("sel");
+        }
+      }
+    );
+  });
+  updateProgress();
+  updateSaveCode();
+}
+
+
+
+
+
+
 
   /* ---------- Screens ---------- */
   function show(id){
@@ -379,11 +517,18 @@
     var startErr = el("startError"); startErr.classList.add("hidden");
     try { sourceText = text; questions = buildQuestions(parseCSV(text)); }
     catch (e){ startErr.textContent = e.message; startErr.classList.remove("hidden"); return; }
-    fileName = name || "quiz";
-    answers = questions.map(function(){ return null; });
-    scrambleAll();
-    renderList();
-    show("quizScreen");
+    // fileName = name || "quiz";          // removed in v2.3
+    // answers = questions.map(function(){ return null; });
+    // scrambleAll();
+    // renderList();
+    // updateSaveCode();
+    // show("quizScreen");
+    fileName = name || "quiz"; //v2.3
+    loadedQuestions = JSON.parse(JSON.stringify(questions));
+    answers = questions.map(function(){return null;});
+    el("startQuizBtn").disabled = false;
+    el("loadedInfo").textContent = questions.length +" questions loaded.";
+    show("startScreen");
   }
 
   function handleFile(file){
@@ -392,6 +537,20 @@
     reader.onload = function(){ loadText(String(reader.result), file.name); };
     reader.onerror = function(){ var e = el("startError"); e.textContent = "Could not read that file. Try choosing it again."; e.classList.remove("hidden"); };
     reader.readAsText(file);
+  }
+
+  function startQuiz(){ //v2.3
+    questions = JSON.parse(JSON.stringify(loadedQuestions));
+    answers = questions.map(function(){ return null;});
+    if(pendingRestoreCode){
+      try{restoreSaveCode(pendingRestoreCode);}
+      catch(err){alert(err.message);return;}
+    } else {
+      scrambleAll();
+      renderList();
+      updateSaveCode();
+    }
+    show("quizScreen");
   }
 
   /* ---------- Render scrollable list ---------- */
@@ -422,6 +581,7 @@
           Array.prototype.forEach.call(opts.querySelectorAll(".opt"), function(l){ l.classList.remove("sel"); });
           label.classList.add("sel");
           updateProgress();
+          updateSaveCode();
         });
         opts.appendChild(label);
       });
@@ -430,6 +590,7 @@
       list.appendChild(block);
     });
     updateProgress();
+    updateSaveCode();
   }
 
   function updateProgress(){
@@ -438,6 +599,14 @@
     el("answeredCounter").textContent = ans + " of " + questions.length + " answered";
     var un = questions.length - ans;
     el("unansweredNote").textContent = un === 0 ? "All questions answered." : (un + (un === 1 ? " question" : " questions") + " still unanswered.");
+  }
+
+  function updateSaveCode(){ //v2.3
+    if(!questions.length) return;
+    var box = el("saveCode");
+    if(box)
+      box.value =
+        generateSaveCode();
   }
 
   /* ---------- Submit ---------- */
@@ -664,7 +833,13 @@
 
   el("templateBtn").addEventListener("click", function(){ download(templateCsv(), "quiz_template.csv", "text/csv"); });
   el("submitBtn").addEventListener("click", submitQuiz);
-
+  el("restoreBtn").addEventListener("click", function(){ //v2.3
+    if(!questions.length){alert( "Load the original CSV first.");return;}
+    try{restoreSaveCode(el("restoreCode").value.trim());show("quizScreen");}
+    catch(err){alert(err.message);}
+  });
+  el("restoreCode").addEventListener("input", function(){pendingRestoreCode = this.value.trim();}); //v2.3
+  el("startQuizBtn").addEventListener("click",startQuiz); //v2.3
   el("downloadFuBtn").addEventListener("click", function(){ download(buildFollowupMd(), "followup_request_" + mmddyyhh() + ".md", "text/markdown"); });
   el("fuTemplateBtn").addEventListener("click", function(){ download(buildBlankTemplate(), "followup_request_template.md", "text/markdown"); });
   el("downloadTxtBtn").addEventListener("click", function(){ download(buildTxtReport(), baseName() + ".txt", "text/plain"); });
