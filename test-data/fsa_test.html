@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Qrusher - Folder-access test</title>
+<!--v3.0 - Phase 1 test page (docs/V3_PLAN.md). The settings block below is rewritten by the page itself in step 3 and by "Download a copy" in step 5, the same way Lite's Apply will work. Keep it the first script in the file.-->
+<script id="qq-settings" type="application/json">{"role":"original","nonce":"repo","writeCount":0}</script>
+<style>
+  :root{
+    --bg:#EEF1F5; --surface:#FFFFFF; --surface-2:#F6F8FB;
+    --ink:#131A24; --muted:#616B7A; --line:#E2E7EE;
+    --accent:#4338CA; --accent-hover:#372FB0; --accent-soft:#ECEBFB;
+    --good:#0F9D74; --good-soft:#E4F5EF;
+    --bad:#DC4B54; --bad-soft:#FBEAEB;
+    --warn:#A76A00; --warn-soft:#FBF1DC;
+    --navy:#1F3B73; --navy-soft:#E7EDF8;
+    --radius:12px; --radius-sm:9px;
+    --shadow:0 1px 2px rgba(19,26,36,.06), 0 8px 24px rgba(19,26,36,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0E1218; --surface:#161C25; --surface-2:#1C2531;
+      --ink:#E8ECF2; --muted:#96A0AD; --line:#263140;
+      --accent:#8B87FF; --accent-hover:#A6A2FF; --accent-soft:#23233A;
+      --good:#34C79A; --good-soft:#12271F;
+      --bad:#F0757C; --bad-soft:#2A1618;
+      --warn:#E7B04A; --warn-soft:#2B2210;
+      --navy:#8FB0E8; --navy-soft:#1A2436;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5; font-size:15px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:28px 16px 80px}
+  h1,h2{margin:0; font-weight:650; letter-spacing:-.01em}
+  h1{font-size:26px; line-height:1.2}
+  h2{font-size:17px}
+  p{margin:8px 0}
+  code{font-family:ui-monospace,Consolas,monospace; font-size:13px; background:var(--surface-2); border:1px solid var(--line); border-radius:5px; padding:0 4px}
+  button{font-family:inherit; cursor:pointer}
+  button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .btn{border:none; border-radius:var(--radius-sm); padding:9px 16px; font-size:14px; font-weight:600; background:var(--accent); color:#fff}
+  .btn:hover{background:var(--accent-hover)}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+  .btn.subtle{background:var(--surface); color:var(--ink); border:1px solid var(--line)}
+  .btn.subtle:hover{background:var(--surface-2)}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 22px; margin-top:14px}
+  .muted{color:var(--muted)}
+  .hidden{display:none !important}
+  .lede{color:var(--muted); margin-top:8px}
+  ol.howto{margin:8px 0 0; padding-left:22px}
+  ol.howto li{margin:4px 0}
+  .banner{border-radius:var(--radius-sm); padding:12px 14px; margin-top:14px; background:var(--navy-soft); color:var(--navy); font-weight:550}
+  .banner.bad{background:var(--bad-soft); color:var(--bad)}
+  .stephead{display:flex; align-items:flex-start; gap:12px}
+  .stephead .grow{flex:1; min-width:0}
+  .num{flex:none; width:28px; height:28px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; font-weight:700; font-size:14px}
+  .q{margin:2px 0 0; color:var(--muted); font-size:14px}
+  .pill{flex:none; font-size:12px; font-weight:700; padding:3px 10px; border-radius:999px; background:var(--surface-2); color:var(--muted); border:1px solid var(--line); white-space:nowrap}
+  .pill.pass{background:var(--good-soft); color:var(--good); border-color:transparent}
+  .pill.fail{background:var(--bad-soft); color:var(--bad); border-color:transparent}
+  .pill.warn{background:var(--warn-soft); color:var(--warn); border-color:transparent}
+  .pill.info{background:var(--navy-soft); color:var(--navy); border-color:transparent}
+  .actions{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
+  .detail{margin:12px 0 0; padding:10px 12px; border-radius:var(--radius-sm); background:var(--surface-2); font-size:14px; white-space:pre-wrap; overflow-wrap:anywhere}
+  .detail:empty{display:none}
+  .detail .when{display:block; color:var(--muted); font-size:12px; margin-top:4px}
+  table{width:100%; border-collapse:collapse; font-size:13px; margin-top:8px}
+  td,th{text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; overflow-wrap:anywhere}
+  th{color:var(--muted); font-weight:600}
+  textarea{width:100%; min-height:180px; margin-top:10px; font-family:ui-monospace,Consolas,monospace; font-size:12px; background:var(--surface-2); color:var(--ink); border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="card">
+    <h1>Folder-access test</h1>
+    <p class="lede">Checks what the File System Access API can do when Quiz Qrusher is opened straight from disk. The results decide how Lite saves progress and applies settings. Nothing is sent anywhere.</p>
+    <ol class="howto">
+      <li>Open this file from disk in Chrome. The address bar should start with <code>file:///</code>.</li>
+      <li>Step 1: choose the folder that contains this file (<code class="ownName"></code>).</li>
+      <li>Step 2: press F5. Step 3: press its button (the page rewrites itself and reloads). Step 4 runs on its own.</li>
+      <li>Step 5: download the copy and open it from your Downloads folder.</li>
+      <li>Step 6: quit the browser completely (menu, then Exit; also check the system tray), reopen this file, then press Record. If it asks, press Reconnect and answer the question. Pick "Allow on every visit" if it is offered.</li>
+      <li>Step 7: quit and reopen once more, then press Record.</li>
+      <li>Press Copy results and paste them to Claude. Then repeat everything in Edge.</li>
+    </ol>
+  </header>
+
+  <div class="banner hidden" id="copyBanner"></div>
+  <div class="banner bad hidden" id="noFsaBanner">This browser has no showDirectoryPicker, so it can't link a folder. Record that and try Chrome or Edge.</div>
+
+  <section class="card" id="folderCard">
+    <div class="stephead">
+      <div class="grow">
+        <h2>Linked folder</h2>
+        <p id="folderLine" class="muted">Checking browser storage...</p>
+      </div>
+      <span class="pill" id="permPill">-</span>
+    </div>
+    <div class="actions"><button class="btn subtle hidden" id="reconnectBtn" type="button">Reconnect</button></div>
+  </section>
+
+  <section class="card">
+    <div class="stephead"><span class="num">1</span><div class="grow"><h2>Link a folder</h2><p class="q">Can it link a folder?</p></div><span class="pill" id="pill-link">Not run</span></div>
+    <p class="muted">Choose the folder that holds <code class="ownName"></code>. The page writes <code>qq_fsa_probe.json</code> there, reads it back, and keeps the folder handle in browser storage (IndexedDB).</p>
+    <div class="actions"><button class="btn" id="linkBtn" type="button">Choose folder...</button></div>
+    <p class="detail" id="det-link"></p>
+  </section>
+
+  <section class="card">
+    <div class="stephead"><span class="num">2</span><div class="grow"><h2>Reload</h2><p class="q">Does the handle survive a reload?</p></div><span class="pill" id="pill-reload">Not run</span></div>
+    <p class="muted">Press F5. This step records itself on the reload.</p>
+    <p class="detail" id="det-reload"></p>
+  </section>
+
+  <section class="card">
+    <div class="stephead"><span class="num">3</span><div class="grow"><h2>Overwrite this file</h2><p class="q">Can the page overwrite its own file?</p></div><span class="pill" id="pill-overwrite">Not run</span></div>
+    <p class="muted">Rewrites the settings block inside <code class="ownName"></code> on disk (adds 1 to a counter), then reloads. It passes if the reloaded page runs with the new counter. This is how Lite's Apply would update its baked settings in place.</p>
+    <div class="actions"><button class="btn" id="overwriteBtn" type="button">Overwrite this file and reload</button></div>
+    <p class="detail" id="det-overwrite"></p>
+  </section>
+
+  <section class="card">
+    <div class="stephead"><span class="num">4</span><div class="grow"><h2>Startup snapshot vs. file on disk</h2><p class="q">Is a snapshot taken at startup a faithful copy of the source?</p></div><span class="pill" id="pill-snapshot">Not run</span></div>
+    <p class="muted">Lite will rebuild itself from a snapshot of the page taken at startup. This compares that snapshot with the real file, read through the linked folder. It runs on its own once the folder is linked and allowed.</p>
+    <p class="detail" id="det-snapshot"></p>
+  </section>
+
+  <section class="card">
+    <div class="stephead"><span class="num">5</span><div class="grow"><h2>Downloaded copy</h2><p class="q">Does a newly downloaded copy still see the handle?</p></div><span class="pill" id="pill-copy">Not run</span></div>
+    <p class="muted">Downloads <code>fsa_test_copy.html</code>, built from the startup snapshot with a new settings block. Open it from your Downloads folder and leave it there. The copy records this step when it opens. If it asks, press Reconnect on the copy too.</p>
+    <div class="actions"><button class="btn" id="copyBtn" type="button">Download a copy</button></div>
+    <p class="detail" id="det-copy"></p>
+  </section>
+
+  <section class="card">
+    <div class="stephead"><span class="num">6</span><div class="grow"><h2>Browser restart</h2><p class="q">Does the handle survive a browser restart?</p></div><span class="pill" id="pill-restart">Not run</span></div>
+    <p class="muted">Quit the browser completely, reopen this file, and press Record. If the folder card above shows Reconnect, press it, then answer the question below.</p>
+    <div class="actions">
+      <button class="btn" id="restartBtn" type="button">Record after restart</button>
+    </div>
+    <p style="margin-top:14px">Did the permission prompt offer <strong>Allow on every visit</strong>?</p>
+    <div class="actions">
+      <button class="btn subtle" id="everyYes" type="button">Yes</button>
+      <button class="btn subtle" id="everyNo" type="button">No</button>
+      <button class="btn subtle" id="everyNone" type="button">There was no prompt</button>
+      <span class="muted" id="everyAns" style="align-self:center"></span>
+    </div>
+    <p class="detail" id="det-restart"></p>
+  </section>
+
+  <section class="card">
+    <div class="stephead"><span class="num">7</span><div class="grow"><h2>Second restart</h2><p class="q">Does "Allow on every visit" stick across restarts?</p></div><span class="pill" id="pill-restart2">Not run</span></div>
+    <p class="muted">Quit and reopen once more, then press Record. It passes if the folder is allowed straight away, with no Reconnect.</p>
+    <div class="actions"><button class="btn" id="restart2Btn" type="button">Record after second restart</button></div>
+    <p class="detail" id="det-restart2"></p>
+  </section>
+
+  <section class="card">
+    <h2>Results</h2>
+    <p class="muted">Paste these to Claude after each browser.</p>
+    <div class="actions">
+      <button class="btn" id="copyResultsBtn" type="button">Copy results</button>
+      <button class="btn subtle" id="clearBtn" type="button">Clear test data</button>
+      <span class="muted" id="copyMsg" style="align-self:center"></span>
+    </div>
+    <textarea id="resultsText" spellcheck="false"></textarea>
+  </section>
+
+  <section class="card">
+    <h2>Environment</h2>
+    <table id="envTable"></table>
+  </section>
+
+  <section class="card">
+    <h2>Recent visits</h2>
+    <p class="muted">Every time this page (or the copy) opens in this browser profile.</p>
+    <table id="visitTable"></table>
+  </section>
+
+</div>
+<script>
+(function(){
+  "use strict";
+  //v3.0 - must stay the first statement: the parser has built everything above this script, and no code has touched the DOM yet
+  var SNAPSHOT = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+
+  var NS = "quizQrusher:fsaTest:";          // all of the user's GitHub Pages projects share one origin, so namespace everything
+  var DB_NAME = "quizQrusher:fsaTest", STORE = "kv";
+  var PROBE = "qq_fsa_probe.json";
+  var OPEN = '<scr' + 'ipt id="qq-settings" type="application/json">'; // split so this script never contains the real tag
+  var CLOSE = '</scr' + 'ipt>';
+
+  var BAKED = readBaked();
+  var PAGE_PATH = decodeURIComponent(location.pathname);
+  var PAGE_NAME = PAGE_PATH.split("/").pop() || "fsa_test.html";
+  var BROWSER = browserName();
+  var NAV = navType();
+  var HAS_FSA = "showDirectoryPicker" in window;
+
+  var STEPS = [
+    { id: "link",      q: "Can it link a folder?" },
+    { id: "reload",    q: "Does the handle survive a reload?" },
+    { id: "overwrite", q: "Can the page overwrite its own file?" },
+    { id: "snapshot",  q: "Is the startup snapshot a faithful copy of the source?" },
+    { id: "copy",      q: "Does a newly downloaded copy still see the handle?" },
+    { id: "restart",   q: "Does the handle survive a browser restart?" },
+    { id: "restart2",  q: "Does \"Allow on every visit\" stick across restarts?" }
+  ];
+  var LABELS = { pass: "Pass", fail: "Fail", warn: "Partial", info: "Waiting" };
+
+  var state = {
+    dirRec: null,       // { handle, folderName, linkedAt, linkedFromPath, linkedByRole, browser }
+    loadPerm: "none",   // permission state when the page opened
+    perm: "none",       // current permission state
+    probeOk: null,
+    idbOk: null, lsOk: null, persist: "not checked",
+    restartRecorded: {} // step ids recorded during this visit, re-recorded after a Reconnect
+  };
+  var results = {};
+  var visit = null;
+
+  function el(id){ return document.getElementById(id); }
+
+  /* ---------- small helpers ---------- */
+  function readBaked(){
+    try { return JSON.parse(document.getElementById("qq-settings").textContent); }
+    catch (e){ return { role: "unknown", nonce: "", writeCount: 0 }; }
+  }
+  function browserName(){
+    var ua = navigator.userAgent, m, os = /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "macOS" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Linux/.test(ua) ? "Linux" : "unknown OS";
+    if ((m = ua.match(/Edg\/([\d.]+)/))) return "Edge " + m[1] + " on " + os;
+    if ((m = ua.match(/OPR\/([\d.]+)/))) return "Opera " + m[1] + " on " + os;
+    if ((m = ua.match(/Firefox\/([\d.]+)/))) return "Firefox " + m[1] + " on " + os;
+    if ((m = ua.match(/Chrome\/([\d.]+)/))) return "Chrome " + m[1] + " on " + os;
+    if ((m = ua.match(/Version\/([\d.]+).*Safari/))) return "Safari " + m[1] + " on " + os;
+    return ua;
+  }
+  function navType(){
+    try {
+      var e = performance.getEntriesByType("navigation")[0];
+      if (e && e.type) return e.type;
+    } catch (err) {}
+    return "unknown";
+  }
+  function fmtTime(ms){ return ms ? new Date(ms).toLocaleString() : "-"; }
+  function randomId(){ return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+  function errText(e){ return (e && e.name ? e.name + ": " : "") + (e && e.message ? e.message : String(e)); }
+
+  function lsGet(k, fallback){
+    try { var v = localStorage.getItem(NS + k); return v == null ? fallback : JSON.parse(v); }
+    catch (e){ return fallback; }
+  }
+  function lsSet(k, v){ try { localStorage.setItem(NS + k, JSON.stringify(v)); return true; } catch (e){ return false; } }
+  function lsDel(k){ try { localStorage.removeItem(NS + k); } catch (e){} }
+
+  function download(content, filename, mime){
+    var blob = new Blob([content], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+
+  /* ---------- IndexedDB (holds the folder handle) ---------- */
+  function idbOpen(){
+    return new Promise(function(resolve, reject){
+      var r = indexedDB.open(DB_NAME, 1);
+      r.onupgradeneeded = function(){ r.result.createObjectStore(STORE); };
+      r.onsuccess = function(){ resolve(r.result); };
+      r.onerror = function(){ reject(r.error); };
+    });
+  }
+  function idbReq(mode, fn){
+    return idbOpen().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(STORE, mode), req = fn(tx.objectStore(STORE));
+        tx.oncomplete = function(){ db.close(); resolve(req.result); };
+        tx.onerror = tx.onabort = function(){ db.close(); reject(tx.error || req.error); };
+      });
+    });
+  }
+  function idbGet(key){ return idbReq("readonly", function(s){ return s.get(key); }); }
+  function idbSet(key, val){ return idbReq("readwrite", function(s){ return s.put(val, key); }); }
+  function idbDel(key){ return idbReq("readwrite", function(s){ return s.delete(key); }); }
+
+  /* ---------- settings block inside the page source ---------- */
+  function bakedSpan(text){
+    var a = text.indexOf(OPEN); if (a < 0) return null;
+    var s = a + OPEN.length, b = text.indexOf(CLOSE, s); if (b < 0) return null;
+    return { start: s, end: b };
+  }
+  function bakedFrom(text){
+    var sp = bakedSpan(text); if (!sp) return null;
+    try { return JSON.parse(text.slice(sp.start, sp.end)); } catch (e){ return null; }
+  }
+  function withBaked(text, obj){
+    var sp = bakedSpan(text);
+    if (!sp) throw new Error("Settings block not found in the page source.");
+    return text.slice(0, sp.start) + JSON.stringify(obj).replace(/</g, "\\u003c") + text.slice(sp.end);
+  }
+
+  /* ---------- folder I/O ---------- */
+  async function writeText(dir, name, text){
+    var fh = await dir.getFileHandle(name, { create: true });
+    var w = await fh.createWritable();
+    await w.write(text);
+    await w.close();
+  }
+  async function readText(dir, name){
+    var fh = await dir.getFileHandle(name);
+    var f = await fh.getFile();
+    return f.text();
+  }
+  async function listNames(dir){
+    var out = [];
+    for await (var h of dir.values()) out.push(h.name);
+    return out;
+  }
+  async function swapFiles(dir){
+    try { return (await listNames(dir)).filter(function(n){ return /\.crswap$/i.test(n); }); }
+    catch (e){ return ["(couldn't list folder: " + errText(e) + ")"]; }
+  }
+  async function writeProbe(dir){
+    await writeText(dir, PROBE, JSON.stringify({ writtenAt: new Date().toISOString(), byPage: PAGE_PATH, browser: BROWSER }, null, 2));
+  }
+  async function readProbe(dir){
+    try { JSON.parse(await readText(dir, PROBE)); return true; } catch (e){ return false; }
+  }
+  // Looks for this page's own file in the linked folder. "same" means its settings block carries this page's nonce.
+  async function findOwnFile(dir){
+    try {
+      var text = await readText(dir, PAGE_NAME);
+      var b = bakedFrom(text);
+      return { found: true, text: text, same: !!(b && b.nonce === BAKED.nonce) };
+    } catch (e){
+      return { found: false, error: e };
+    }
+  }
+
+  /* ---------- results ---------- */
+  function record(id, status, detail){
+    results[id] = { status: status, detail: detail, at: Date.now(), role: BAKED.role, path: PAGE_PATH };
+    lsSet("results", results);
+    renderResults();
+  }
+  function renderResults(){
+    STEPS.forEach(function(s){
+      var r = results[s.id], pill = el("pill-" + s.id), det = el("det-" + s.id);
+      pill.className = "pill" + (r ? " " + r.status : "");
+      pill.textContent = r ? LABELS[r.status] : "Not run";
+      det.textContent = "";
+      if (r){
+        det.appendChild(document.createTextNode(r.detail));
+        var w = document.createElement("span"); w.className = "when";
+        w.textContent = "Recorded " + fmtTime(r.at) + " by the " + r.role + " page";
+        det.appendChild(w);
+      }
+    });
+    var ev = lsGet("everyVisit", "");
+    el("everyAns").textContent = ev ? "Answer: " + ev : "";
+    el("resultsText").value = resultsMarkdown();
+  }
+  function cell(s){ return String(s == null ? "" : s).replace(/\|/g, "\\|").replace(/\n+/g, " "); }
+  function resultsMarkdown(){
+    var lines = [];
+    lines.push("### Folder-access test: " + BROWSER + " (" + new Date().toLocaleString() + ")");
+    lines.push("");
+    lines.push("| # | Question | Result | Details |");
+    lines.push("|---|---|---|---|");
+    STEPS.forEach(function(s, i){
+      var r = results[s.id];
+      lines.push("| " + (i + 1) + " | " + cell(s.q) + " | " + (r ? LABELS[r.status] : "Not run") + " | " + (r ? cell(r.detail) + " _(" + r.role + ", " + fmtTime(r.at) + ")_" : "") + " |");
+    });
+    lines.push("");
+    lines.push("\"Allow on every visit\" offered: " + (lsGet("everyVisit", "") || "not answered"));
+    lines.push("");
+    lines.push("Environment:");
+    envRows().forEach(function(r){ lines.push("- " + r[0] + ": " + r[1]); });
+    lines.push("");
+    lines.push("Recent visits (newest first):");
+    lsGet("visits", []).slice().reverse().forEach(function(v){
+      lines.push("- " + fmtTime(v.at) + " · " + v.nav + " · " + v.role + " · handle " + v.handle + " · permission " + v.perm + (v.reconnect ? " -> Reconnect: " + v.reconnect : "") + " · probe " + v.probe + " · " + v.path);
+    });
+    return lines.join("\n");
+  }
+
+  /* ---------- environment + visits ---------- */
+  function envRows(){
+    return [
+      ["Browser", BROWSER],
+      ["Page", location.protocol + "//" + PAGE_PATH],
+      ["Origin", String(location.origin)],
+      ["Secure context", String(window.isSecureContext)],
+      ["showDirectoryPicker", HAS_FSA ? "yes" : "no"],
+      ["IndexedDB", state.idbOk == null ? "not checked" : state.idbOk === true ? "works" : state.idbOk],
+      ["localStorage", state.lsOk ? "works" : "blocked"],
+      ["navigator.storage.persist()", state.persist],
+      ["BroadcastChannel", "BroadcastChannel" in window ? "yes" : "no"],
+      ["Web Locks", navigator.locks ? "yes" : "no"],
+      ["Navigation type", NAV],
+      ["Settings block", JSON.stringify(BAKED)]
+    ];
+  }
+  function renderEnv(){
+    var t = el("envTable"); t.textContent = "";
+    envRows().forEach(function(r){
+      var tr = document.createElement("tr"), th = document.createElement("th"), td = document.createElement("td");
+      th.textContent = r[0]; td.textContent = r[1]; tr.appendChild(th); tr.appendChild(td); t.appendChild(tr);
+    });
+  }
+  function saveVisit(){
+    var visits = lsGet("visits", []), i;
+    for (i = 0; i < visits.length; i++){ if (visits[i].id === visit.id){ visits[i] = visit; break; } }
+    if (i === visits.length) visits.push(visit);
+    lsSet("visits", visits.slice(-15));
+    renderVisits();
+  }
+  function renderVisits(){
+    var t = el("visitTable"); t.textContent = "";
+    var head = document.createElement("tr");
+    ["When", "How", "Page", "Handle", "Permission", "Probe"].forEach(function(h){ var th = document.createElement("th"); th.textContent = h; head.appendChild(th); });
+    t.appendChild(head);
+    lsGet("visits", []).slice().reverse().forEach(function(v){
+      var tr = document.createElement("tr");
+      [fmtTime(v.at), v.nav, v.role, v.handle, v.perm + (v.reconnect ? " -> " + v.reconnect : ""), v.probe].forEach(function(c){
+        var td = document.createElement("td"); td.textContent = c; tr.appendChild(td);
+      });
+      t.appendChild(tr);
+    });
+  }
+
+  /* ---------- linked-folder card ---------- */
+  function renderFolder(){
+    var line = el("folderLine"), pill = el("permPill"), rec = state.dirRec;
+    if (!rec){
+      line.textContent = "No folder handle in this browser's storage.";
+      pill.className = "pill"; pill.textContent = "none";
+    } else {
+      line.textContent = "“" + rec.folderName + "”, linked " + fmtTime(rec.linkedAt) + " by the " + rec.linkedByRole + " page at " + rec.linkedFromPath;
+      pill.className = "pill " + (state.perm === "granted" ? "pass" : state.perm === "prompt" ? "warn" : "fail");
+      pill.textContent = "permission: " + state.perm;
+    }
+    el("reconnectBtn").classList.toggle("hidden", !(rec && state.perm !== "granted"));
+  }
+
+  /* ---------- step 1: link ---------- */
+  async function linkFolder(){
+    if (!HAS_FSA){ record("link", "fail", "showDirectoryPicker isn't available in this browser."); return; }
+    var dir;
+    try { dir = await window.showDirectoryPicker({ id: "qqfsa", mode: "readwrite" }); }
+    catch (e){
+      if (e && e.name === "AbortError") return;   // the user closed the picker
+      record("link", "fail", "The folder picker failed. " + errText(e)); return;
+    }
+    try { await writeProbe(dir); }
+    catch (e){ record("link", "fail", "Picked “" + dir.name + "” but couldn't write " + PROBE + ". " + errText(e)); return; }
+    var readBack = await readProbe(dir);
+    var rec = { handle: dir, folderName: dir.name, linkedAt: Date.now(), linkedFromPath: PAGE_PATH, linkedByRole: BAKED.role, browser: BROWSER };
+    try { await idbSet("dir", rec); }
+    catch (e){ record("link", "fail", "Wrote and read the probe, but couldn't store the folder handle in IndexedDB. " + errText(e)); return; }
+    state.dirRec = rec; state.perm = "granted"; state.probeOk = readBack;
+    visit.handle = "linked now"; visit.perm = "granted"; visit.probe = readBack ? "ok" : "failed"; saveVisit();
+    renderFolder();
+    var own = await findOwnFile(dir);
+    var swaps = await swapFiles(dir);
+    record("link", readBack ? "pass" : "fail",
+      "Linked “" + dir.name + "”, wrote " + PROBE + (readBack ? " and read it back." : " but couldn't read it back.") +
+      " Handle stored in IndexedDB." +
+      (own.found ? (own.same ? " This page's file is in the folder, so step 3 can run." : " A file named " + PAGE_NAME + " is in the folder but it isn't this copy.") :
+                   " This page's file is NOT in that folder, so step 3 can't run. Link the folder that holds " + PAGE_NAME + ".") +
+      (swaps.length ? " Leftover swap files: " + swaps.join(", ") + "." : ""));
+    if (own.found && own.same) checkSnapshot(own.text);
+  }
+
+  /* ---------- step 3: overwrite own file ---------- */
+  async function ensurePerm(){
+    var h = state.dirRec && state.dirRec.handle;
+    if (!h) return false;
+    var p = await h.queryPermission({ mode: "readwrite" });
+    if (p !== "granted") p = await h.requestPermission({ mode: "readwrite" });
+    state.perm = p; renderFolder();
+    return p === "granted";
+  }
+  async function overwriteSelf(){
+    if (!state.dirRec){ record("overwrite", "fail", "No linked folder. Do step 1 first."); return; }
+    var ok;
+    try { ok = await ensurePerm(); } catch (e){ record("overwrite", "fail", "Permission check failed. " + errText(e)); return; }
+    if (!ok){ record("overwrite", "fail", "Write permission was not granted (" + state.perm + ")."); return; }
+    var dir = state.dirRec.handle;
+    var own = await findOwnFile(dir);
+    if (!own.found){ record("overwrite", "fail", "The linked folder “" + dir.name + "” has no file named " + PAGE_NAME + ". Redo step 1 with the folder that holds this page."); return; }
+    if (!own.same){ record("overwrite", "fail", "Found " + PAGE_NAME + " in the folder, but its settings block doesn't match this page, so it may be another copy. Not overwriting it."); return; }
+    var cur = bakedFrom(own.text) || {};
+    var next = JSON.parse(JSON.stringify(cur));
+    next.writeCount = (cur.writeCount || 0) + 1;
+    next.lastWriteAt = new Date().toISOString();
+    next.lastWriteBy = BROWSER;
+    var newText;
+    try { newText = withBaked(own.text, next); } catch (e){ record("overwrite", "fail", errText(e)); return; }
+    try { await writeText(dir, PAGE_NAME, newText); }
+    catch (e){ record("overwrite", "fail", "Reading worked, but writing " + PAGE_NAME + " failed. " + errText(e)); return; }
+    var swaps = await swapFiles(dir);
+    lsSet("pendingWrite", { expect: next.writeCount, at: Date.now(), bytesBefore: own.text.length, bytesAfter: newText.length, swaps: swaps });
+    location.reload();
+  }
+  // After overwriteSelf() reloads the page: did the page come back running the rewritten file?
+  async function checkPendingWrite(){
+    var p = lsGet("pendingWrite", null);
+    if (!p) return;
+    lsDel("pendingWrite");
+    var later = state.dirRec && state.perm === "granted" ? await swapFiles(state.dirRec.handle) : null;
+    var swapNote = " Swap files right after writing: " + (p.swaps.length ? p.swaps.join(", ") : "none") +
+                   (later ? "; after the reload: " + (later.length ? later.join(", ") : "none") + "." : ".");
+    if (BAKED.writeCount === p.expect){
+      record("overwrite", "pass", "Rewrote " + PAGE_NAME + " in place (" + p.bytesBefore + " to " + p.bytesAfter + " characters) and reloaded. The page now runs with writeCount " + BAKED.writeCount + "." + swapNote);
+    } else {
+      record("overwrite", "fail", "The write reported success, but after the reload the page shows writeCount " + BAKED.writeCount + " instead of " + p.expect + ", so the reload didn't pick up the new file." + swapNote);
+    }
+  }
+
+  /* ---------- step 4: snapshot fidelity ---------- */
+  // The HTML parser always makes two changes, so they're allowed: it drops whitespace between <html> and <head>,
+  // and the snapshot ends at the main script because the parser hadn't reached the closing tags yet.
+  // Anything else (e.g. markup a browser extension injected before startup) is a real difference.
+  function checkSnapshot(fileText){
+    var crlf = fileText.indexOf("\r\n") >= 0 ? " The file uses CRLF line endings (compared as LF)." : "";
+    var known = function(s){
+      s = s.replace(/\r\n?/g, "\n").replace(/^(<!DOCTYPE html>\s*<html[^>]*>)\s+(<head>)/i, "$1$2");
+      var c = s.lastIndexOf(CLOSE);
+      return c >= 0 ? s.slice(0, c + CLOSE.length) : s;
+    };
+    var a = known(fileText), b = known(SNAPSHOT);
+    if (a === b){
+      record("snapshot", "pass", "The snapshot matches the file apart from the two parser changes that always happen (whitespace before <head>, closing tags after the main script)." + crlf);
+      return;
+    }
+    var i = 0, n = Math.min(a.length, b.length);
+    while (i < n && a[i] === b[i]) i++;
+    var near = function(s){ return JSON.stringify(s.slice(Math.max(0, i - 40), i + 60)); };
+    var ws = a.replace(/\s+/g, " ") === b.replace(/\s+/g, " ");
+    record("snapshot", ws ? "warn" : "fail",
+      (ws ? "Differs only in whitespace. " : "Differs. ") + "First difference at character " + i + " of " + a.length + "." + crlf +
+      "\nFile:     " + near(a) + "\nSnapshot: " + near(b) +
+      "\nA browser extension adding markup before startup would show up here.");
+  }
+
+  /* ---------- step 5: downloaded copy ---------- */
+  function downloadCopy(){
+    var baked = { role: "copy", nonce: randomId(), writeCount: 0, copiedFrom: PAGE_PATH, copiedAt: new Date().toISOString(), copiedBy: BROWSER };
+    var text;
+    try { text = withBaked(SNAPSHOT, baked); } catch (e){ record("copy", "fail", "Couldn't build the copy. " + errText(e)); return; }
+    download(text, "fsa_test_copy.html", "text/html");
+    var prev = results.copy;
+    if (!prev || prev.status === "info") record("copy", "info", "Copy downloaded (built from the startup snapshot). Open fsa_test_copy.html from your Downloads folder to finish this step.");
+  }
+  // Runs on the copy itself when it opens.
+  function recordCopy(){
+    var marker = lsGet("marker", null);
+    var parts = [];
+    parts.push("Copy at " + PAGE_PATH + " (made " + fmtTime(Date.parse(BAKED.copiedAt)) + " from " + BAKED.copiedFrom + ").");
+    if (state.idbOk !== true){
+      parts.push("IndexedDB " + state.idbOk + ", so shared storage can't be judged.");
+      parts.push("localStorage shared with the original: " + (marker ? "yes" : "no") + ".");
+      record("copy", "warn", parts.join(" "));
+      return;
+    }
+    if (!state.dirRec){
+      parts.push("No folder handle in IndexedDB, so the copy does NOT share the original's storage.");
+    } else {
+      parts.push("Sees the folder handle “" + state.dirRec.folderName + "” linked by the " + state.dirRec.linkedByRole + " page at " + state.dirRec.linkedFromPath + ".");
+      parts.push("Permission on open: " + state.loadPerm + (visit.reconnect ? ", after Reconnect: " + visit.reconnect : "") + ".");
+      if (state.probeOk != null) parts.push("Probe read: " + (state.probeOk ? "ok" : "failed") + ".");
+    }
+    parts.push("localStorage shared with the original: " + (marker ? "yes" : "no") + ".");
+    if (state.dirRec && state.perm !== "granted") parts.push("Press Reconnect above to test one-click access from the copy.");
+    var status = !state.dirRec ? "fail" : state.perm === "granted" ? "pass" : "warn";
+    record("copy", status, parts.join(" "));
+  }
+
+  /* ---------- steps 6-7: restarts ---------- */
+  function recordRestart(id){
+    state.restartRecorded[id] = true;
+    if (state.idbOk !== true){ record(id, "warn", "IndexedDB " + state.idbOk + ", so the handle couldn't be checked."); return; }
+    if (!state.dirRec){ record(id, "fail", "No folder handle in browser storage after the restart. (Navigation: " + NAV + ".)"); return; }
+    var parts = ["Handle found (“" + state.dirRec.folderName + "”).", "Permission when the page opened: " + state.loadPerm + "."];
+    if (visit.reconnect) parts.push("After one Reconnect click: " + visit.reconnect + ".");
+    if (state.probeOk != null) parts.push("Probe read: " + (state.probeOk ? "ok" : "failed") + ".");
+    if (visit.freshTab) parts.push("This tab started fresh (no session storage), as expected after a restart.");
+    else parts.push("Note: this tab still had session storage, so the browser may not have fully restarted.");
+    var status;
+    if (id === "restart2") status = state.loadPerm === "granted" ? "pass" : "warn";
+    else status = state.loadPerm === "granted" || state.perm === "granted" ? "pass" : "warn";
+    if (status === "warn") parts.push(id === "restart2" ? "Still needs a Reconnect click on each visit." : "Press Reconnect, then Record again.");
+    record(id, status, parts.join(" "));
+  }
+
+  /* ---------- reconnect (any page) ---------- */
+  async function reconnect(){
+    var h = state.dirRec && state.dirRec.handle;
+    if (!h) return;
+    var p;
+    try { p = await h.requestPermission({ mode: "readwrite" }); }
+    catch (e){ p = "error (" + errText(e) + ")"; }
+    state.perm = p;
+    visit.reconnect = p;
+    if (p === "granted"){
+      state.probeOk = await readProbe(h);
+      visit.probe = state.probeOk ? "ok" : "failed";
+      var own = await findOwnFile(h);
+      if (own.found && own.same) checkSnapshot(own.text);
+    }
+    saveVisit();
+    renderFolder();
+    if (BAKED.role === "copy") recordCopy();
+    Object.keys(state.restartRecorded).forEach(recordRestart);
+  }
+
+  /* ---------- startup ---------- */
+  async function init(){
+    document.querySelectorAll(".ownName").forEach(function(n){ n.textContent = PAGE_NAME; });
+    el("resultsText").readOnly = true;   // set here, not in markup, so the snapshot has no boolean attributes
+    if (!HAS_FSA){ el("noFsaBanner").classList.remove("hidden"); el("linkBtn").disabled = true; }
+
+    state.lsOk = lsSet("probe", 1);
+    results = lsGet("results", {});
+
+    var freshTab = true;
+    try { freshTab = !sessionStorage.getItem(NS + "tab"); sessionStorage.setItem(NS + "tab", "1"); } catch (e){}
+    visit = { id: randomId(), at: Date.now(), nav: NAV, role: BAKED.role, path: PAGE_PATH, handle: "no", perm: "none", probe: "-", reconnect: "", freshTab: freshTab };
+
+    if (BAKED.role === "copy"){
+      var b = el("copyBanner");
+      b.textContent = "This is the downloaded copy, made " + fmtTime(Date.parse(BAKED.copiedAt)) + " from " + BAKED.copiedFrom + ". It records step 5 below.";
+      b.classList.remove("hidden");
+    } else {
+      lsSet("marker", { at: Date.now(), path: PAGE_PATH });   // lets a copy tell whether localStorage is shared
+    }
+
+    // don't await: persist() can sit unresolved, and nothing else depends on it
+    if (navigator.storage && navigator.storage.persist){
+      state.persist = "pending";
+      navigator.storage.persist().then(function(v){ state.persist = String(v); }, function(e){ state.persist = "error (" + errText(e) + ")"; })
+        .then(function(){ renderEnv(); renderResults(); });
+    } else state.persist = "not available";
+
+    try {
+      // a stuck IndexedDB would otherwise leave the page on "Checking..." forever
+      var timeout = new Promise(function(_, reject){ setTimeout(function(){ reject(new Error("no response after 5 s")); }, 5000); });
+      state.dirRec = (await Promise.race([idbGet("dir"), timeout])) || null;
+      state.idbOk = true;
+    } catch (e){ state.idbOk = "failed (" + errText(e) + ")"; }
+
+    if (state.dirRec && state.dirRec.handle && state.dirRec.handle.queryPermission){
+      visit.handle = "yes";
+      try { state.loadPerm = await state.dirRec.handle.queryPermission({ mode: "readwrite" }); }
+      catch (e){ state.loadPerm = "error (" + errText(e) + ")"; }
+      state.perm = state.loadPerm;
+      visit.perm = state.loadPerm;
+      if (state.perm === "granted"){
+        state.probeOk = await readProbe(state.dirRec.handle);
+        visit.probe = state.probeOk ? "ok" : "failed";
+      }
+    } else if (state.dirRec){
+      visit.handle = "stored but unusable";
+    }
+    saveVisit();
+    renderFolder();
+    renderEnv();
+
+    await checkPendingWrite();
+
+    if (NAV === "reload" && BAKED.role !== "copy" && (state.dirRec || results.link)){
+      if (!state.dirRec) record("reload", "fail", "The folder handle was gone after the reload.");
+      else record("reload", state.loadPerm === "granted" ? "pass" : "warn",
+        "Handle found after the reload. Permission: " + state.loadPerm + "." +
+        (state.probeOk != null ? " Probe read: " + (state.probeOk ? "ok" : "failed") + "." : "") +
+        (state.loadPerm === "granted" ? "" : " A reload shouldn't drop permission; press Reconnect and reload again."));
+    }
+
+    if (state.perm === "granted" && BAKED.role !== "copy"){
+      var own = await findOwnFile(state.dirRec.handle);
+      if (own.found && own.same) checkSnapshot(own.text);
+    }
+
+    if (BAKED.role === "copy") recordCopy();
+    renderResults();
+  }
+
+  /* ---------- wiring ---------- */
+  el("linkBtn").addEventListener("click", linkFolder);
+  el("overwriteBtn").addEventListener("click", overwriteSelf);
+  el("copyBtn").addEventListener("click", downloadCopy);
+  el("restartBtn").addEventListener("click", function(){ recordRestart("restart"); });
+  el("restart2Btn").addEventListener("click", function(){ recordRestart("restart2"); });
+  el("reconnectBtn").addEventListener("click", reconnect);
+  function answerEvery(v){ lsSet("everyVisit", v); renderResults(); }
+  el("everyYes").addEventListener("click", function(){ answerEvery("yes"); });
+  el("everyNo").addEventListener("click", function(){ answerEvery("no"); });
+  el("everyNone").addEventListener("click", function(){ answerEvery("no prompt appeared"); });
+  el("copyResultsBtn").addEventListener("click", function(){
+    var text = resultsMarkdown(), msg = el("copyMsg");
+    el("resultsText").value = text;
+    var fallback = function(){
+      var t = el("resultsText"); t.focus(); t.select();
+      var ok = false; try { ok = document.execCommand("copy"); } catch (e){}
+      msg.textContent = ok ? "Copied." : "Select the text below and copy it.";
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ msg.textContent = "Copied."; }, fallback);
+    } else fallback();
+  });
+  el("clearBtn").addEventListener("click", function(){
+    if (!confirm("Clear the stored folder handle, results and visit log for this browser?")) return;
+    ["results", "visits", "pendingWrite", "marker", "everyVisit", "probe"].forEach(lsDel);
+    idbDel("dir").catch(function(){}).then(function(){ location.reload(); });
+  });
+
+  init().catch(function(e){
+    var b = el("noFsaBanner");
+    b.textContent = "The test page hit an error while starting: " + errText(e);
+    b.classList.remove("hidden");
+  });
+})();
+</script>
+</body>
+</html>

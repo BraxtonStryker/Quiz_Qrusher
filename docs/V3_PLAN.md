@@ -196,6 +196,10 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
   - Can the page overwrite its own file?
 
   Record the results here; they decide the Lite saving and Apply design.
+  - Built 2026-10-14. Also tests whether the startup snapshot exactly matches the file on disk (step 4) and whether "Allow on every visit" works on `file://` (steps 6–7). The page rewrites its own settings block in step 3, so restore `test-data/fsa_test.html` with git after the test runs.
+  - Found while building it: an `outerHTML` snapshot taken as the first statement of the last script matches the source except for (1) whitespace between `<html>` and `<head>`, which the parser drops, and (2) the closing tags after that script. So "rebuild from the startup snapshot" is viable for Lite. (The serializer would also rewrite boolean attributes as `attr=""` and escape `>`/`&` in text. That's harmless to a rebuilt page; it only matters for byte-exact comparison, so the test page avoids them.) `navigator.storage.persist()` returned `false` in headless Chrome, so don't await it in startup paths.
+  - Results, Chrome: _pending_
+  - Results, Edge: _pending_
 - [ ] **2. Core:**
   - app shell (tabs, Home tiles)
   - storage layer (IndexedDB plus fallback)

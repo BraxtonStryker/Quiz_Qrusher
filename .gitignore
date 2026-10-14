@@ -8,3 +8,7 @@ docs/guides/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Phase 1 folder-access test artifacts
+test-data/qq_fsa_probe.json
+*.crswap
