@@ -189,7 +189,7 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
   - Done 2026-10-14: 8 version commits tagged `v1.0.0`, `v2.0.0`, `v2.1.0` (+`v2.1.1`), `v2.2.0`, `v2.3.0`–`v2.3.3`, then the organized-tree commit. Pushed to `github.com/BraxtonStryker/Quiz_Qrusher`. Repo-local `core.autocrlf=false` (files stay LF).
   - Stray root files from the earlier reorganization were moved: dev prompts → `prompts/dev/`, old zips → `_archive_local/`, `system_user_guide.pdf` → `docs/guides/`.
   - [ ] **Pages not enabled yet** (Claude's tool call was blocked). Enable it by hand: repo Settings → Pages → Deploy from branch `main`, folder `/ (root)`. Nothing serves until `index.html` exists (Phase 2).
-- [ ] **1. Folder-access test page** (`test-data/fsa_test.html`). The user opens it **from disk** in Chrome and Edge. It reports:
+- [x] **1. Folder-access test page** (`test-data/fsa_test.html`). The user opens it **from disk** in Chrome and Edge. It reports:
   - Can it link a folder?
   - Does the handle survive a reload or a browser restart?
   - Does a newly downloaded copy of the file still see the handle (shared `file://` storage)?
@@ -198,8 +198,27 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
   Record the results here; they decide the Lite saving and Apply design.
   - Built 2026-10-14. Also tests whether the startup snapshot exactly matches the file on disk (step 4) and whether "Allow on every visit" works on `file://` (steps 6–7). The page rewrites its own settings block in step 3, so restore `test-data/fsa_test.html` with git after the test runs.
   - Found while building it: an `outerHTML` snapshot taken as the first statement of the last script matches the source except for (1) whitespace between `<html>` and `<head>`, which the parser drops, and (2) the closing tags after that script. So "rebuild from the startup snapshot" is viable for Lite. (The serializer would also rewrite boolean attributes as `attr=""` and escape `>`/`&` in text. That's harmless to a rebuilt page; it only matters for byte-exact comparison, so the test page avoids them.) `navigator.storage.persist()` returned `false` in headless Chrome, so don't await it in startup paths.
-  - Results, Chrome: _pending_
-  - Results, Edge: _pending_
+  - **Results, Chrome 155 / Windows (2026-10-14), test folder inside iCloud Drive:**
+    | Question | Result |
+    |---|---|
+    | Link a folder | ✅ Writes and reads back; the handle is stored in IndexedDB |
+    | Survives reload | ✅ Permission stays `granted` |
+    | Overwrite its own file | ✅ Rewrote in place and the reload picked up the new settings. No `.crswap` left behind, even in iCloud |
+    | Startup snapshot = source | ✅ Only the two known parser differences |
+    | Downloaded copy sees the handle | ✅ The copy in `Downloads/` saw the handle and the localStorage. **All `file://` pages share one storage.** In-session permission carried over (`granted`) |
+    | Survives browser restart | ✅ The handle survives, but permission resets to `prompt`; one Reconnect click restores it |
+    | "Allow on every visit" | ❌ Not offered on `file://`. Every browser session needs one Reconnect click |
+    - Implications for Lite:
+      - The saves-folder status line, with "⚠ Saved in browser only — Reconnect", will show on the first open after every browser restart. That's expected, not an error.
+      - Apply can call `requestPermission` inside its own click, so in-place Apply always works with no extra step.
+      - Shared `file://` storage means a replaced Lite file keeps its browser autosaves and its folder handle. Proposed: change the Apply fallback message from "relink your saves folder" to "press Reconnect". **Confirm with the user.**
+      - The `quizQrusher:` key namespace matters on `file://` too, since every local HTML page shares that storage.
+      - Chrome renamed the second download to `fsa_test_copy (1).html`. A fixed-name Lite download gets ` (1)` if the old file is still in Downloads; the Apply message should say so.
+      - `persist()` is `false` on `file://` too. Export backup and the saves folder are the real safety net.
+  - **Results, Edge 155 / Windows (2026-10-14):** identical to Chrome on every row, including no "Allow on every visit" on `file://`.
+    - Also seen: one Reconnect returned `prompt` (the user dismissed the permission bubble). Reconnect must treat `prompt` as "not yet", keep the button visible, and not show an error.
+  - **Firefox (2026-10-14, informal):** no `showDirectoryPicker`, as expected. It did **grant persistent storage** (`persist()`), which helps Lite's browser-storage fallback there.
+    - Unverified: whether Firefox shares storage across `file://` pages. By default Firefox treats each local file as its own origin, so a replaced Lite file may *not* see the old autosaves. Test this in Phase 6. If it doesn't share, the Firefox path relies on the downloaded `.json` saves.
 - [ ] **2. Core:**
   - app shell (tabs, Home tiles)
   - storage layer (IndexedDB plus fallback)
@@ -234,6 +253,7 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
 1. **Google Form link (Phase 7):** the user is creating it. If prefilling is wanted, the form needs "App version" and "Browser" short-answer fields. Use a placeholder until the link arrives.
 2. **GoatCounter site code (Phase 7):** the user needs an account at goatcounter.com. Use a placeholder until then.
 3. **Show-answer edge case:** a correct answer given before the reveal is assumed to count as correct (§2 Quiz features). Confirm when building Phase 3.
+4. **Lite Apply fallback message (Phase 6):** Phase 1 showed that relinking isn't needed on Chrome/Edge. Proposed wording: "...then reopen it and press Reconnect". Also warn that Chrome may save the file as `... (1).html`. Asked on 2026-10-14; no answer yet.
 
 Resolved on 2026-10-14:
 - `gh` is logged in.
