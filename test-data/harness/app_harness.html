@@ -31,14 +31,21 @@ function click(elOrId) { (typeof elOrId === "string" ? $(elOrId) : elOrId).click
 function rowButtons(listId) { return [...$(listId).querySelectorAll(".row")].map(r => ({ title: r.querySelector(".rowtitle").textContent, meta: r.querySelector(".rowmeta").textContent, btns: [...r.querySelectorAll("button")] })); }
 function btn(row, label) { return row.btns.find(b => b.textContent === label); }
 
+// Waits for the app iframe to (re)load, then stubs dialogs and captures downloads. Call again after the app reloads itself.
+const confirms = [];
+async function bind(frameId) {
+  const f = document.getElementById(frameId || "f");
+  await new Promise(r => f.addEventListener("load", r, { once: true }));
+  const w = f.contentWindow;
+  w.confirm = (m) => { confirms.push(m); return true; }; w.alert = (m) => log("ALERT " + m); w.prompt = () => "Renamed Bank";
+  w.HTMLAnchorElement.prototype.click = function () { const a = this; captured.push({ name: a.download, href: a.href }); };
+  if (!frameId) { W = w; D = w.document; }
+  return w;
+}
 document.getElementById("f").src = new URLSearchParams(location.search).get("src") || "../../index.html";
 (async function () {
   try {
-    await new Promise(r => document.getElementById("f").addEventListener("load", r));
-    W = document.getElementById("f").contentWindow; D = W.document;
-    W.confirm = () => true; W.alert = (m) => log("ALERT " + m); W.prompt = () => "Renamed Bank";
-    // capture downloads
-    W.HTMLAnchorElement.prototype.click = function () { const a = this; captured.push({ name: a.download, href: a.href }); };
+    await bind();
     await sleep(6500); // IndexedDB hangs in headless -> 5 s timeout -> localStorage fallback
 
     check("home visible", visible("homeScreen"));
@@ -190,9 +197,11 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     btn(rowButtons("bankList").find(r => r.title === "qus_input_5"), "Start").click(); await sleep(400);
     check("p3 quiz of 5", visible("quizScreen") && D.querySelectorAll(".qblock").length === 5);
     check("p3 timer shown", /^⏱ \d+:\d\d$/.test(txt("timerDisplay")) && visible("timerDisplay"), txt("timerDisplay"));
+    check("p3 no label in test mode", txt("modeLabel") === "", txt("modeLabel"));
     check("p3 starts in test mode", $("modeToggle").getAttribute("aria-checked") === "false" && $("qList").classList.contains("mode-test"));
     check("p3 reveal hidden in test", W.getComputedStyle(D.querySelector(".qreveal")).display === "none");
     click("modeToggle"); await sleep(100);
+    check("p3 tutor label", txt("modeLabel") === "Tutor mode · revealed questions aren't scored", txt("modeLabel"));
     check("p3 tutor mode on", $("modeToggle").getAttribute("aria-checked") === "true" && !$("qList").classList.contains("mode-test") && W.getComputedStyle(D.querySelector(".qreveal")).display !== "none");
     let qb = D.querySelectorAll(".qblock");
     // Q1: reveal without answering -> not scored
@@ -260,6 +269,93 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("p3 review list retake title", rowButtons("reviewList").some(r => r.title === "qus_input_5 · flagged questions"), rowButtons("reviewList").map(r => r.title).join("|"));
     W.history.back(); await sleep(400);
     check("p3 back from review -> home", visible("homeScreen"));
+
+    // ======== Phase 4: settings, theming, data tools, browser notice ========
+    click(D.querySelector('.tab[data-tab="settings"]')); await sleep(500);
+    check("p4 settings screen", visible("settingsScreen") && D.querySelectorAll("#settingsBody .set-section").length === 7, D.querySelectorAll("#settingsBody .set-section").length);
+    const root = D.documentElement, css = (k) => W.getComputedStyle(root).getPropertyValue(k).trim().toUpperCase();
+    const segBtn = (key, val) => $("set_" + key).querySelector('[data-val="' + val + '"]');
+    const pick = async (key, val) => { $("set_" + key).value = val; $("set_" + key).dispatchEvent(new W.Event("change")); await sleep(80); };
+    click(segBtn("theme", "dark")); await sleep(100);
+    check("p4 theme dark", root.getAttribute("data-theme") === "dark" && css("--bg") === "#0E1218", css("--bg"));
+    click(segBtn("theme", "light")); await sleep(100);
+    check("p4 theme light", root.getAttribute("data-theme") === "light" && css("--bg") === "#EEF1F5" && css("--accent") === "#4338CA", css("--bg") + " " + css("--accent"));
+    click(segBtn("accent", "teal")); await sleep(100);
+    check("p4 accent teal", css("--accent") === "#0F766E" && segBtn("accent", "teal").getAttribute("aria-pressed") === "true", css("--accent"));
+    click(segBtn("theme", "dark")); await sleep(100);
+    check("p4 accent follows theme", css("--accent") === "#2DD4BF" && css("--on-accent") === "#062221", css("--accent"));
+    click(segBtn("theme", "light")); await sleep(80);
+    click("set_colorBlind"); await sleep(100);
+    check("p4 color-blind colors", css("--good") === "#0072B2" && css("--bad") === "#C75300" && $("set_colorBlind").getAttribute("aria-checked") === "true", css("--good"));
+    await pick("textScale", "1.25");
+    check("p4 text size", css("--fs") === "1.25" && W.getComputedStyle(D.body).fontSize === "20px", W.getComputedStyle(D.body).fontSize);
+    await pick("lineSpacing", "1.3");
+    check("p4 line spacing", css("--lh") === "1.3");
+    click(segBtn("font", "atkinson")); await sleep(100);
+    await D.fonts.load('16px "Atkinson Hyperlegible"');
+    check("p4 font atkinson", root.getAttribute("data-font") === "atkinson" && W.getComputedStyle(D.body).fontFamily.indexOf("Atkinson Hyperlegible") >= 0 && [...D.fonts].some(f => f.family.indexOf("Atkinson") >= 0 && f.status === "loaded"), W.getComputedStyle(D.body).fontFamily);
+    click("set_reduceMotion"); await sleep(50);
+    check("p4 reduce motion", root.getAttribute("data-motion") === "reduce" && W.getComputedStyle(D.querySelector(".btn")).transitionDuration === "0s", W.getComputedStyle(D.querySelector(".btn")).transitionDuration);
+    let saved = JSON.parse(W.localStorage.getItem("quizQrusher:settings"));
+    check("p4 settings saved", saved.theme === "light" && saved.accent === "teal" && saved.colorBlind === true && saved.textScale === 1.25 && saved.font === "atkinson" && saved.reduceMotion === true);
+    // quiz settings
+    check("p4 save prompt default off with folder access", $("set_downloadOnSubmit").getAttribute("aria-checked") === "false");
+    ["showCategory", "shuffleOptions", "showAnswer", "timer", "warnOnSubmit", "downloadOnSubmit"].forEach(k => click("set_" + k));
+    await pick("fuCount", "15"); await pick("fuDifficulty", "Moderate");
+    saved = JSON.parse(W.localStorage.getItem("quizQrusher:settings"));
+    check("p4 quiz settings saved", saved.showCategory === true && saved.shuffleOptions === false && saved.showAnswer === false && saved.timer === false && saved.warnOnSubmit === false && saved.downloadOnSubmit === true && saved.fuCount === "15");
+    click(D.querySelector('.tab[data-tab="home"]')); await sleep(300);
+    click(D.querySelector('.tile[data-go="start"]')); await sleep(400);
+    btn(rowButtons("bankList").find(r => r.title === "qus_input_5"), "Start").click(); await sleep(400);
+    const qb4 = [...D.querySelectorAll(".qblock")];
+    check("p4 category tag shown", qb4.every(b => b.querySelector(".qhead .tag")));
+    check("p4 options in original order", qb4.every(b => { const v = [...b.querySelectorAll("input")].map(i => +i.value); return v.join() === v.slice().sort((x, y) => x - y).join(); }));
+    check("p4 no options-shuffled label", txt("modeLabel") === "", txt("modeLabel"));
+    check("p4 tutor hidden", $("modeToggle").classList.contains("hidden") && $("qList").classList.contains("mode-test"));
+    check("p4 timer hidden", $("timerDisplay").classList.contains("hidden"));
+    const nConf = confirms.length;
+    click("submitBtn"); await sleep(600);
+    check("p4 no submit warning", confirms.length === nConf && visible("resultsScreen"), confirms.length - nConf);
+    check("p4 follow-up defaults", $("fuQuantity").value === "15" && $("fuDifficulty").value === "Moderate");
+    check("p4 save prompt after submit", visible("toast") && txt("toastMsg").indexOf("Download a save file of this quiz?") === 0, txt("toastMsg"));
+    const nCap = captured.length;
+    click("toastYes"); await sleep(300);
+    check("p4 save prompt downloads", captured.length === nCap + 1 && /_results_\d{8}\.json$/.test(captured[captured.length - 1].name) && !visible("toast"), captured[captured.length - 1].name);
+    check("p4 no time on results when timer off", txt("scoreWhere").indexOf("time") < 0, txt("scoreWhere"));
+    // data tools
+    click(D.querySelector('.tab[data-tab="settings"]')); await sleep(700);
+    check("p4 storage info", D.querySelector("#settingsBody .set-section:last-child .set-desc").textContent.indexOf("question banks and") > 0, D.querySelector("#settingsBody .set-section:last-child .set-desc").textContent);
+    click("exportAllBtn"); await sleep(500);
+    const bundleCap = captured[captured.length - 1];
+    const bundleText = await (await fetch(bundleCap.href)).text(), bundle = JSON.parse(bundleText);
+    check("p4 export all", /^quiz_qrusher_backup_\d{8}\.json$/.test(bundleCap.name) && bundle.format === "quiz-qrusher-backup" && bundle.banks.length === 2 && bundle.attempts.length >= 3 && bundle.settings.accent === "teal", bundleCap.name + " " + bundle.banks.length + "/" + bundle.attempts.length);
+    const reloaded = bind();
+    click("clearAllBtn");
+    await reloaded; await sleep(1500);
+    check("p4 clear all", visible("homeScreen") && txt("tileResumeSub") === "Nothing in progress" && txt("tileReviewSub") === "No finished quizzes yet" && txt("tileStartSub") === "Load a question CSV", txt("tileStartSub"));
+    check("p4 clear all resets settings", !D.documentElement.hasAttribute("data-theme") && W.localStorage.getItem("quizQrusher:settings") === null);
+    click(D.querySelector('.tile[data-go="import"]')); await sleep(200);
+    await setFile("importInput", bundleCap.name, bundleText, "application/json"); await sleep(1200);
+    check("p4 import bundle", txt("importDone").indexOf("Backup imported: 2 question banks; " + bundle.attempts.length + " quizzes added, 0 updated, 0 already up to date.") === 0, txt("importDone") + " / " + txt("importError"));
+    check("p4 bundle restores settings", D.documentElement.getAttribute("data-theme") === "light" && D.documentElement.getAttribute("data-font") === "atkinson");
+    await setFile("importInput", bundleCap.name, bundleText, "application/json"); await sleep(1200);
+    check("p4 import bundle again", txt("importDone").indexOf("0 quizzes added, 0 updated, " + bundle.attempts.length + " already up to date") > 0, txt("importDone"));
+    click(D.querySelector('.tab[data-tab="home"]')); await sleep(400);
+    check("p4 home after bundle", txt("tileStartSub") === "2 question banks saved", txt("tileStartSub"));
+    click(D.querySelector('.tab[data-tab="settings"]')); await sleep(400);
+    click("resetSettingsBtn"); await sleep(200);
+    check("p4 reset settings", !D.documentElement.hasAttribute("data-font") && !D.documentElement.hasAttribute("data-theme") && JSON.parse(W.localStorage.getItem("quizQrusher:settings")).accent === "indigo");
+    // browser notice, in a browser without folder access
+    const nf = document.createElement("iframe"); nf.id = "nf"; nf.style.cssText = "width:800px;height:600px"; document.body.appendChild(nf);
+    let nfLoad = bind("nf"); nf.src = "/_variant/nofsa/index.html"; const NW = await nfLoad; await sleep(800);
+    check("p4 notice shows without folder access", NW.document.getElementById("browserNotice").open === true && !("showDirectoryPicker" in NW));
+    NW.document.getElementById("browserNoticeDont").click(); NW.document.getElementById("useFullBtn").click(); await sleep(100);
+    check("p4 notice dismissed", NW.document.getElementById("browserNotice").open === false && NW.localStorage.getItem("quizQrusher:hideBrowserNotice") === "1");
+    nfLoad = bind("nf"); NW.location.reload(); const NW2 = await nfLoad; await sleep(800);
+    check("p4 notice stays dismissed", NW2.document.getElementById("browserNotice").open === false);
+    click("noticeAgainBtn"); await sleep(100);
+    check("p4 show notice again", W.localStorage.getItem("quizQrusher:hideBrowserNotice") === null && $("noticeAgainBtn").disabled);
+    nf.remove();
 
     // ---- tabs
     click(D.querySelector('.tab[data-tab="help"]')); await sleep(100);

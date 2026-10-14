@@ -10,7 +10,7 @@ Offline-capable quiz app: users generate multiple-choice question CSVs with an A
 - `prompts/medical/`: current AI pipeline prompts. `prompts/ee/` is planned. `prompts/dev/` has prompts used to build the app. `prompts/archive/` has superseded prompts
 - `docs/guides/`: old user-guide PDFs (v0, v1, v2.1), **gitignored/private**; their content is being rebuilt as the in-app Help menu
 - `test-data/csv/`: sample question banks (gitignored, lecture-derived). `test-data/saves_v2/`: v2 resume-code .txt files covering the answered/flagged combinations
-- `test-data/harness/`: headless-Chrome regression harness for `index.html`. Rerun it after changes and extend it per phase (instructions at the top of `app_harness.html`). `cdp_shot.py` screenshots app states over the DevTools protocol. `test-data/fsa_test.html`: the Phase 1 folder-access test
+- `test-data/harness/`: headless-Chrome regression harness for `index.html`. Rerun it after changes and extend it per phase (instructions at the top of `app_harness.html`). `cdp_shot.py` screenshots app states over the DevTools protocol. `logserver.py` also serves `/_variant/nofsa|noidb/<page>` to fake browsers without folder access or IndexedDB. `test-data/fsa_test.html`: the Phase 1 folder-access test
 - `_archive_local/`: gitignored old zips
 
 ## Conventions (match the existing code)

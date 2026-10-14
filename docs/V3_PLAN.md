@@ -251,7 +251,26 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
     - **Help from the quiz:** a Help link in the quiz bar; the Help screen then shows "← Back to quiz".
     - **Browser Back button (user request):** from any screen, Back returns to Home instead of leaving the app. One history entry sits on top of Home while another screen shows.
     - Harness: 90 checks. `test-data/harness/cdp_shot.py` takes screenshots of app states driven in real time.
-- [ ] **4. Settings + theming:** move all colors to tokens, the Settings tab, the unsupported-browser dialog.
+- [x] **4. Settings + theming:** move all colors to tokens, the Settings tab, the unsupported-browser dialog.
+  - Done 2026-10-14. Notes:
+    - **Theming:** `QQ-SHARED:appearance` is a small script in `<head>` (so there's no flash of the wrong theme). It sets `data-theme` (absent = match system), `data-font`, `data-motion`, and inline `--accent*`, `--good/--bad*` (color-blind preset), `--fs` and `--lh` on `<html>`, and re-applies when the OS theme changes. The dark tokens exist twice in CSS: under `@media (prefers-color-scheme: dark) :root:not([data-theme="light"])` and under `:root[data-theme="dark"]`. Every `font-size`/`line-height` is `calc(... * var(--fs|--lh))`.
+    - **Accent presets:** Indigo (default), Blue, Teal, Purple, Rose, Orange, each with light and dark values and its own text-on-accent color. Color-blind-safe colors use Okabe-Ito blue/orange.
+    - **Fonts:** System, Serif (system serif stack), Atkinson Hyperlegible (Latin 400/700 woff2 inlined as base64, about 46 KB; OFL notice in the CSS comment; credit it in Help → Privacy/credits in Phase 7).
+    - **Settings tab:** built from `SETTINGS_UI` (a schema of switch / seg / select / swatches / custom rows). Keys and defaults are in `SETTINGS_DEFAULTS`. Changes apply live and save to `quizQrusher:settings`. Quiz settings affect new attempts (shuffles) or re-render the open quiz (category tag, Tutor, timer).
+    - **Saving:**
+      - The folder row is a placeholder until Phase 5.
+      - "Prompt me to download a save file when I submit" defaults **on only without folder access** (`!showDirectoryPicker`).
+      - "Also prompt during a quiz" can be off or every 5/10/15/30 min.
+      - Prompts are a bottom toast with Download / Not now, and any export resets the interval.
+    - **Data:**
+      - storage summary plus `navigator.storage.persisted()`
+      - **Export all**: a bundle `{format: "quiz-qrusher-backup", version: 3, app, exportedAt, settings, banks, attempts}`
+      - Import (goes to the Import screen, which now also takes bundles: banks matched by CSV, the newer copy of each quiz wins, and it asks before restoring settings)
+      - Show the browser notice again
+      - Reset settings
+      - Clear all (deletes the stores and every `quizQrusher:` key, then reloads)
+    - **Unsupported-browser dialog** (`<dialog>`): appears when `showDirectoryPicker` is missing, once per browser session unless "Don't show again" (`quizQrusher:hideBrowserNotice`). On mobile it says "on a computer". "Use Lite version" goes to `lite.html` (exists from Phase 6).
+    - **Harness:** 129 checks. `logserver.py` serves `/_variant/nofsa/…` and `/_variant/noidb/…` (the app with `showDirectoryPicker` or IndexedDB removed). Run it as-is and with `?src=/_variant/noidb/index.html`.
 - [ ] **5. Saves folder** (Chrome/Edge): link, reconnect, debounced writes, reconciliation, multi-tab safety, status line.
 - [ ] **6. Lite:**
   - `lite.html` from v2.3.3 + shared blocks
@@ -288,5 +307,7 @@ Resolved on 2026-10-14:
 - The download prompt fires on Submit, plus an optional interval set in Settings.
 - Lite Apply fallback message: "Delete the old Lite file and put this one in its place, then reopen it and press Reconnect (Chrome/Edge)." Relinking isn't needed (Phase 1). Also warn that the browser may save the file as `... (1).html`.
 - **Save status is just a green ✓** (full app and Lite). "Saved in browser · just now" appears on hover or keyboard focus, and the check carries it as its `aria-label`. Warnings (⚠) always show their full text. (User request, 2026-10-14.)
-- **Tutor mode toggle is an iOS-style switch** inside the dock tab: a vertical "TUTOR MODE" label above a switch that turns green when on. Off = Test mode. (User request, 2026-10-14.)
+- **Tutor mode toggle is an iOS-style switch** inside the dock tab: a vertical "TUTOR MODE" label above a **vertical** switch whose knob slides down and turns green when on. Off = Test mode. The dock is a column on the right edge with the Tutor tab **above** NOTES, and above the notes panel when it's open, so it never covers the quiz. (User requests, 2026-10-14.)
+- **Quiz screen:** no "Options shuffled" label. The spot only shows the Tutor-mode note. (User request, 2026-10-14.)
+- **App bar spans the full window width, nothing centered:** "Quiz Qrusher", Home and Prompt Builder at the left edge; Feedback, Help and a ⚙ Settings cog at the right edge, in that order. Page content below stays in the centered column. (User request, 2026-10-14. The user wrote "Home and Prompt Builder on the right", read as left because the right group is Feedback/Help/cog; confirm if wrong.)
 - **The Reconnect button must be hard to miss** (full app and Lite): a prominent accent-colored button in the quiz header/status line, plus a banner on Home and on quiz open whenever a linked folder needs permission. Never just a small text link.
