@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Quiz Qrusher icon (v3.0, Phase 8): a "Q" with a check mark -->
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5145E6"/><stop offset="1" stop-color="#3A31B8"/></linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="246" cy="240" r="153" stroke-width="50"/>
+    <path d="M368 336L430 378" stroke-width="54"/>
+    <path d="M190 244L232 288L304 200" stroke-width="34"/>
+  </g>
+</svg>

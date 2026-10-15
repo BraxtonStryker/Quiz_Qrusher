@@ -3,7 +3,8 @@
 <!--v3.0 - regression harness for index.html (Phase 2+). Drives the app in an iframe and POSTs its log to /log.
   Needs the private fixtures in test-data/csv/ (gitignored). Run from the repo root:
     python -I test-data/harness/logserver.py . result.txt
-    chrome --headless=new --user-data-dir=<fresh temp dir> --remote-debugging-port=9333 http://127.0.0.1:8767/test-data/harness/app_harness.html
+    chrome --headless=new --user-data-dir=<fresh temp dir with a SHORT path, e.g. %TEMP%\qqh1> --remote-debugging-port=9333 http://127.0.0.1:8767/test-data/harness/app_harness.html
+  (A long profile path breaks Cache Storage on Windows: the service worker never activates and the p8 checks fail.)
   then read result.txt. Use real time (not --virtual-time-budget): virtual time outruns FileReader.
   ?src=<page> loads a different app page, e.g. a copy with indexedDB removed to test the localStorage fallback.-->
 
@@ -600,6 +601,41 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     const emailRe = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/;
     const idxSrc = await getText("/index.html"), litSrc7 = await getText("/lite.html");
     check("p7 no email address", !emailRe.test(idxSrc) && !emailRe.test(litSrc7), (idxSrc.match(emailRe) || litSrc7.match(emailRe) || [""])[0]);
+
+    // ======== Phase 8: installable app (manifest, icons, service worker, update offer) ========
+    if (/noidb/.test(location.search)) log("SKIP p8 (variant page has its own scope)"); else {
+    const man = JSON.parse(await getText("/manifest.webmanifest"));
+    check("p8 manifest", man.name === "Quiz Qrusher" && man.start_url === "./" && man.scope === "./" && man.display === "standalone" && man.icons.some(i => i.purpose === "maskable"));
+    const pngSize = async (u) => { const b = new Uint8Array(await (await fetch(u)).arrayBuffer()); const v = new DataView(b.buffer); return b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47 ? v.getUint32(16) + "x" + v.getUint32(20) : "not png"; };
+    const sizes = await Promise.all(["/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png", "/icons/apple-touch-icon.png"].map(pngSize));
+    check("p8 icons", sizes.join() === "192x192,512x512,512x512,180x180", sizes.join());
+    check("p8 head links", !!D.querySelector('link[rel="manifest"]') && !!D.querySelector('link[rel="apple-touch-icon"]') && !!D.querySelector('meta[name="theme-color"]'));
+    // (Cache Storage needs a short Chrome profile path on Windows: a long --user-data-dir breaks it and the worker never activates)
+    const reg = await Promise.race([W.navigator.serviceWorker.ready, sleep(15000).then(() => null)]);
+    check("p8 service worker active", !!reg && !!reg.active && reg.scope === location.origin + "/" && !!W.navigator.serviceWorker.controller, reg ? reg.scope : "not ready after 15 s");
+    if (reg) {
+    const swVersion = (await getText("/sw.js")).match(/const VERSION = "([^"]+)"/)[1];
+    const cacheNames = await W.caches.keys();
+    const appCache = await W.caches.open("quizQrusher-" + swVersion);
+    const cachedUrls = (await appCache.keys()).map(r => new URL(r.url).pathname);
+    check("p8 precache", cacheNames.indexOf("quizQrusher-" + swVersion) >= 0 && ["/", "/index.html", "/lite.html", "/prompts/medical/medical_prompts.zip", "/icons/icon-512.png"].every(u => cachedUrls.indexOf(u) >= 0), cacheNames.join() + " | " + cachedUrls.join());
+    check("p8 lite has no service worker", !/serviceWorker\.register/.test(await getText("/lite.html")) && /<link rel="icon" href="data:image\/svg\+xml;base64,/.test(await getText("/lite.html")));
+    // a new version: offer it, keep the offer across screens, Reload swaps it in and reloads
+    click(D.querySelector('.tab[data-tab="home"]')); await sleep(200);
+    await fetch("/_swbump");
+    await reg.update();
+    for (let i = 0; i < 50 && !reg.waiting; i++) await sleep(200);
+    await sleep(300);
+    check("p8 update offered", !!reg.waiting && visible("toast") && txt("toastMsg") === "A new version of Quiz Qrusher is ready." && txt("toastYes") === "Reload", (!!reg.waiting) + " " + txt("toastMsg"));
+    click(D.querySelector('.tab[data-tab="help"]')); await sleep(200);
+    check("p8 offer survives screen change", visible("toast"));
+    const afterUpdate = bind();
+    click("toastYes");
+    await afterUpdate; await sleep(1200);
+    const reg2 = await W.navigator.serviceWorker.ready;
+    check("p8 updated and reloaded", !reg2.waiting && !!W.navigator.serviceWorker.controller && !visible("toast") && visible("homeScreen"));
+    }
+    }
 
     // ---- tabs
     click(D.querySelector('.tab[data-tab="help"]')); await sleep(100);

@@ -5,12 +5,12 @@ Offline-capable quiz app: users generate multiple-choice question CSVs with an A
 **Active work: v3.0. Read [docs/V3_PLAN.md](docs/V3_PLAN.md) first and tick off its checklist as phases finish.**
 
 ## Layout
-- `index.html`, `lite.html`, `sw.js`, `manifest.webmanifest`: v3 site root (created during v3 build)
+- `index.html`, `lite.html`, `sw.js`, `manifest.webmanifest`, `icons/`: v3 site root
 - `versions/`: every shipped app version (v1 to v2.3.3). The v3 baseline is `versions/quiz_qrusher_v2.3.3.html`
 - `prompts/medical/`: current AI pipeline prompts. `prompts/ee/` is planned. `prompts/dev/` has prompts used to build the app. `prompts/archive/` has superseded prompts
 - `docs/guides/`: old user-guide PDFs (v0, v1, v2.1), **gitignored/private**; their content is being rebuilt as the in-app Help menu
 - `test-data/csv/`: sample question banks (gitignored, lecture-derived). `test-data/saves_v2/`: v2 resume-code .txt files covering the answered/flagged combinations
-- `test-data/harness/`: headless-Chrome regression harness for `index.html`. Rerun it after changes and extend it per phase (instructions at the top of `app_harness.html`). `cdp_shot.py` screenshots app states over the DevTools protocol. `logserver.py` also serves `/_variant/nofsa|noidb|fsatest/<page>`: no folder access, no IndexedDB, or a fake folder picker backed by OPFS. `check_shared.py` checks (or `--sync`s from index.html) the QQ-SHARED blocks and CSS that lite.html copies. `test-data/fsa_test.html`: the Phase 1 folder-access test
+- `test-data/harness/`: headless-Chrome regression harness for `index.html`. Rerun it after changes and extend it per phase (instructions at the top of `app_harness.html`). `cdp_shot.py` screenshots app states over the DevTools protocol. `logserver.py` also serves `/_variant/nofsa|noidb|fsatest/<page>`: no folder access, no IndexedDB, or a fake folder picker backed by OPFS. `check_shared.py` checks (or `--sync`s from index.html) the QQ-SHARED blocks and CSS that lite.html copies, the embedded prompts + prompts zip, and the `sw.js` VERSION hash. **Run `--sync` after changing index.html, lite.html, prompts or icons**, or the service worker won't ship the change. Give headless Chrome a short `--user-data-dir` (e.g. `%TEMP%\qqh1`); long paths break Cache Storage. `test-data/fsa_test.html`: the Phase 1 folder-access test
 - `_archive_local/`: gitignored old zips
 
 ## Conventions (match the existing code)

@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quiz Qrusher</title>
 <!--v3.0 - full app. Built from versions/quiz_qrusher_v2.3.3.html; see docs/V3_PLAN.md-->
+<!--v3.0 - Phase 8: installable app (PWA). These files only matter on the hosted site; from disk they're ignored.-->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#4338CA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161C25" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-title" content="Qrusher">
+<meta name="description" content="Take multiple-choice practice quizzes from a question CSV, offline, and see where to focus next.">
 <style>
   :root{
     color-scheme:light;                   /*v3.0*/
@@ -772,6 +781,9 @@
         <li><strong>Browser limits:</strong> Safari can delete a site's stored data after about seven days without a visit, and private windows keep nothing. In those browsers, export backups or turn on the save-file prompts in Settings &gt; Saving. The "works best on Chrome or Edge" notice can come back after such a wipe even if you chose "Don't show again".</li>
       </ul>
 
+      <h3>Install it as an app</h3>
+      <p>On the hosted site, Quiz Qrusher can be installed like an app and then opens without an internet connection. In Chrome or Edge, use the install icon at the right end of the address bar. On an iPhone or iPad, in Safari, tap Share, then <strong>Add to Home Screen</strong> (installed apps also keep their saved quizzes longer in Safari). When a new version is out you'll see "A new version of Quiz Qrusher is ready": press <strong>Reload</strong> and your quiz is saved first.</p>
+
       <h2 id="help-review">Review and retake</h2>
       <ul>
         <li><strong>Review previous quiz</strong> lists submitted quizzes with their scores. Open one to see its results again.</li>
@@ -1422,7 +1434,7 @@
 
   function show(id){
     if (quizOnScreen() && id !== "quizScreen" && cur){ timerPause(); saveNow(); } //v3.0 - stop the clock and flush notes before leaving the quiz
-    hideToast();                                                      //v3.0
+    if (toastKind !== "update") hideToast();                          //v3.0 - an update offer stays up until answered
     if (id === "settingsScreen") renderSettings();                    //v3.0
     if (id === "helpScreen") renderPrompts();                         //v3.0 - Phase 7
     if (id === "feedbackScreen") openFeedback();                      //v3.0 - Phase 7
@@ -2755,13 +2767,14 @@
   }
 
   /* ---------- Save-file prompts (toast) ---------- */ //v3.0
-  var toastAction = null, lastPromptAt = Date.now();
-  function showToast(msg, yesLabel, onYes){
+  var toastAction = null, toastKind = "", lastPromptAt = Date.now();
+  function showToast(msg, yesLabel, onYes, kind){
+    toastKind = kind || "";
     el("toastMsg").textContent = msg; el("toastYes").textContent = yesLabel; toastAction = onYes;
     el("toastNo").classList.toggle("hidden", !onYes); // information only: just OK
     el("toast").classList.remove("hidden");
   }
-  function hideToast(){ el("toast").classList.add("hidden"); toastAction = null; }
+  function hideToast(){ el("toast").classList.add("hidden"); toastAction = null; toastKind = ""; }
   function promptAfterSubmit(){
     if (!settings.downloadOnSubmit || !cur) return;
     var bank = cur.bank, attempt = cur.attempt;
@@ -2770,7 +2783,7 @@
   }
   function maybePromptDuringQuiz(){
     var mins = +settings.downloadInterval || 0;
-    if (!mins || !cur || !quizOnScreen() || !el("toast").classList.contains("hidden")) return;
+    if (!mins || !cur || !quizOnScreen() || !el("toast").classList.contains("hidden")) return;   // never over another toast
     if (Date.now() - lastPromptAt < mins * 60000) return;
     lastPromptAt = Date.now();
     showToast("Download a save file of your progress so far?", "Download", function(){ exportCurrent(); });
@@ -2839,6 +2852,34 @@
     el("envInfo").textContent = envLine();
     var f = el("feedbackFrame");
     if (!f.getAttribute("src")) f.setAttribute("src", FEEDBACK_EMBED);   // nothing loads from Google until this tab opens
+  }
+
+  /* ---------- Offline app (service worker) ---------- */ //v3.0 - Phase 8
+  // Registered only on the hosted site. A new version installs in the background and waits; the toast's Reload
+  // saves the open quiz, then tells the new worker to take over, and the page reloads once it has.
+  var swReg = null, swReloading = false;
+  function setupServiceWorker(){
+    if (!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return;
+    navigator.serviceWorker.addEventListener("controllerchange", function(){ if (swReloading) location.reload(); });
+    navigator.serviceWorker.register("sw.js").then(function(reg){
+      swReg = reg;
+      if (reg.waiting && navigator.serviceWorker.controller) offerUpdate();
+      reg.addEventListener("updatefound", function(){
+        var nw = reg.installing;
+        if (nw) nw.addEventListener("statechange", function(){ if (nw.state === "installed" && navigator.serviceWorker.controller) offerUpdate(); });
+      });
+      document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") reg.update().catch(function(){}); });
+      setInterval(function(){ reg.update().catch(function(){}); }, 3600000);
+    }).catch(function(){});
+  }
+  function offerUpdate(){ showToast("A new version of Quiz Qrusher is ready.", "Reload", applyUpdate, "update"); }
+  function applyUpdate(){
+    if (!swReg || !swReg.waiting){ location.reload(); return; }
+    var waiting = swReg.waiting;
+    timerPause();
+    saveNow();
+    swReloading = true;
+    saveChain.then(function(){ waiting.postMessage({ type: "SKIP_WAITING" }); });
   }
 
   /* ---------- Notes dock ---------- */ //v2.3.2
@@ -2940,6 +2981,7 @@
   /* ---------- Startup ---------- */ //v3.0
   el("appVersion").textContent = APP_VERSION;
   maybeShowBrowserNotice(); //v3.0
+  setupServiceWorker();     //v3.0 - Phase 8
   openStore().then(function(s){
     store = s;
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){}); // not awaited: it can sit unresolved

@@ -9,6 +9,7 @@ Usage: python -I logserver.py <root> <out-file>      (listens on 127.0.0.1:8767)
 import http.server, os, sys
 
 ROOT, OUT = sys.argv[1], sys.argv[2]
+SW_BUMP = 0   # GET /_swbump makes the served sw.js differ (tests the "new version" flow)
 VARIANTS = {
     "nofsa": b"<script>try{delete Window.prototype.showDirectoryPicker;delete window.showDirectoryPicker;}catch(e){}</script>",
     "noidb": b"<script>try{Object.defineProperty(window,'indexedDB',{value:undefined});}catch(e){}</script>",
@@ -32,6 +33,18 @@ class H(http.server.SimpleHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        global SW_BUMP
+        if self.path.split("?")[0] == "/_swbump":        # next /sw.js differs, so browsers see a new version
+            SW_BUMP += 1
+            self.send_response(204); self.end_headers(); return
+        if self.path.split("?")[0] == "/sw.js" and SW_BUMP:
+            body = open(os.path.join(ROOT, "sw.js"), "rb").read() + (b"\n// test bump %d\n" % SW_BUMP)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         parts = self.path.split("?")[0].split("/")
         if len(parts) > 3 and parts[1] == "_variant" and parts[2] in VARIANTS:
             rel = "/".join(parts[3:])

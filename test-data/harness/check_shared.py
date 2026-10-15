@@ -109,9 +109,40 @@ def main():
         print("missing in lite.html:", n)
     for m in leftover:
         print("unfilled marker:", m)
-    if bad or missing or leftover or prompt_problems:
+    sw_problems = sw_step(sync)   # last: it hashes the files the steps above may have rewritten
+    for pr in sw_problems:
+        print(pr)
+    if bad or missing or leftover or prompt_problems or sw_problems:
         sys.exit(1)
     print("shared blocks match:", ", ".join(sorted(have)))
+
+
+SW_VERSION = re.compile(r'const VERSION = "([^"]*)";')
+
+
+def sw_step(sync):
+    """sw.js VERSION = hash of every file it precaches, so any change to them ships as a new app version."""
+    import hashlib
+    sw = open("sw.js", encoding="utf-8").read()
+    listed = re.search(r"const PRECACHE = \[(.*?)\];", sw, re.S)
+    if not listed:
+        return ["sw.js has no PRECACHE list"]
+    h = hashlib.sha256()
+    for path in re.findall(r'"([^"]+)"', listed.group(1)):
+        path = "index.html" if path == "./" else path
+        try:
+            h.update(path.encode() + b"\0" + open(path, "rb").read())
+        except OSError:
+            return ["sw.js precaches a missing file: " + path]
+    want = h.hexdigest()[:12]
+    have = SW_VERSION.search(sw)
+    if sync:
+        sw = SW_VERSION.sub('const VERSION = "%s";' % want, sw, count=1)
+        open("sw.js", "w", encoding="utf-8", newline="").write(sw)
+        return []
+    if not have or have.group(1) != want:
+        return ["sw.js VERSION is stale (run --sync): has %s, files say %s" % (have.group(1) if have else "none", want)]
+    return []
 
 
 main()
