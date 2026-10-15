@@ -80,6 +80,18 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     blocks[1].querySelectorAll("input")[2].click();
     blocks[2].querySelector(".qflagbtn").click();
     $("noteText").value = "my notes ü ✓"; $("noteText").dispatchEvent(new W.Event("input", { bubbles: true }));
+    // v3.0.1 - strike out Q4 option 2 (doesn't answer it); Q5: choose option 1, click it again -> unselected (Test mode)
+    blocks[3].querySelectorAll(".ostrike")[1].click();
+    const struckVal = +blocks[3].querySelectorAll("input")[1].value;
+    check("v301 strike", blocks[3].querySelectorAll(".opt")[1].classList.contains("struck") && !blocks[3].querySelectorAll("input")[1].checked && blocks[3].querySelectorAll(".ostrike")[1].getAttribute("aria-pressed") === "true" && W.getComputedStyle(blocks[3].querySelectorAll(".otext")[1]).textDecorationLine === "line-through");
+    blocks[4].querySelectorAll("input")[0].click();
+    check("v301 chosen", blocks[4].querySelectorAll("input")[0].checked && txt("answeredCounter").indexOf("3 of 25") === 0, txt("answeredCounter"));
+    blocks[4].querySelectorAll("input")[0].click();
+    check("v301 unselect in test mode", !blocks[4].querySelectorAll("input")[0].checked && !blocks[4].querySelector(".opt.sel"), txt("answeredCounter"));
+    // choosing a struck option un-strikes it
+    blocks[5].querySelectorAll(".ostrike")[0].click(); blocks[5].querySelectorAll("input")[0].click();
+    check("v301 choosing un-strikes", blocks[5].querySelectorAll("input")[0].checked && !blocks[5].querySelector(".opt.struck"));
+    blocks[5].querySelectorAll("input")[0].click();
     await sleep(1200);
     check("counter", txt("answeredCounter") === "2 of 25 answered  -  1 flagged", txt("answeredCounter"));
     check("save status", txt("saveStatus").indexOf("Saved in browser") >= 0, txt("saveStatus"));
@@ -91,9 +103,10 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     const exp = captured[captured.length - 1];
     check("export name", /^qus_input_25_progress_\d{8}\.json$/.test(exp.name), exp.name);
     const expJson = JSON.parse(await (await fetch(exp.href)).text());
-    check("export format", expJson.format === "quiz-qrusher-save" && expJson.version === 3 && expJson.app === "3.0");
+    check("export format", expJson.format === "quiz-qrusher-save" && expJson.version === 3 && expJson.app === "3.0.1");
     check("export embeds csv", expJson.bank.csvText === csv25 && expJson.bank.csvHash === 634952293, expJson.bank.csvHash);
     check("export attempt fields", expJson.attempt.answers.filter(x => x !== null).length === 2 && expJson.attempt.flags[2] === 1 && expJson.attempt.notes === "my notes ü ✓" && expJson.attempt.revealed.length === 25 && !("bankId" in expJson.attempt));
+    check("v301 export struck", expJson.attempt.struck.length === 25 && expJson.attempt.struck[3].join() === String(struckVal) && expJson.attempt.struck[5].length === 0, JSON.stringify(expJson.attempt.struck.slice(0, 6)));
     const expText = await (await fetch(exp.href)).text();
 
     // ---- Home -> Resume
@@ -108,6 +121,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("resumed same order", b2[0].querySelector(".qtext").textContent === q1text);
     check("resumed answer", b2[0].querySelectorAll("input")[0].checked && b2[0].querySelectorAll("input")[0].value === a1);
     check("resumed flag", b2[2].classList.contains("flagged"));
+    check("v301 resumed strike", b2[3].querySelectorAll(".opt")[1].classList.contains("struck") && b2[3].querySelectorAll(".opt.struck").length === 1);
     check("resumed notes", $("noteText").value === "my notes ü ✓");
 
     // ---- Submit
@@ -220,8 +234,14 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     qb[3].querySelector(".qflagbtn").click(); await sleep(200);
     check("p3 counter mix", txt("answeredCounter") === "2 of 5 answered  -  1 revealed  -  1 flagged", txt("answeredCounter"));
     check("p3 unanswered note excludes revealed", txt("unansweredNote") === "2 questions still unanswered.", txt("unansweredNote"));
+    qb[2].querySelectorAll("input")[0].click(); await sleep(50); // v3.0.1 - Tutor mode: clicking the chosen option again keeps it
+    check("v301 no unselect in tutor", qb[2].querySelectorAll("input")[0].checked && txt("answeredCounter").indexOf("2 of 5") === 0, txt("answeredCounter"));
+    check("v301 strike hidden when revealed", W.getComputedStyle(qb[0].querySelector(".ostrike")).display === "none");
     click("modeToggle"); await sleep(100);
     check("p3 back to test keeps reveals", $("modeToggle").getAttribute("aria-checked") === "false" && qb[0].classList.contains("revealed") && W.getComputedStyle(qb[2].querySelector(".qreveal")).display === "none");
+    qb[2].querySelectorAll("input")[0].click(); await sleep(50);
+    check("v301 unselect after leaving tutor", !qb[2].querySelectorAll("input")[0].checked && txt("answeredCounter").indexOf("1 of 5") === 0, txt("answeredCounter"));
+    qb[2].querySelectorAll("input")[0].click(); await sleep(50);
     // Help from the quiz, then back
     click("quizHelpBtn"); await sleep(200);
     check("p3 help from quiz", visible("helpScreen") && visible("helpBackBar"));
@@ -478,9 +498,11 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("l6 quiz", visible("quizScreen") && D.querySelectorAll(".qblock").length === 5 && visible("noteDock"));
     D.querySelectorAll(".qblock")[0].querySelectorAll("input")[0].click();
     D.querySelectorAll(".qblock")[1].querySelector(".qflagbtn").click();
+    D.querySelectorAll(".qblock")[2].querySelectorAll("input")[0].click(); D.querySelectorAll(".qblock")[2].querySelectorAll("input")[0].click(); // v3.0.1 - unselect
+    D.querySelectorAll(".qblock")[2].querySelectorAll(".ostrike")[1].click(); // v3.0.1 - strike
     $("noteText").value = "lite notes"; $("noteText").dispatchEvent(new W.Event("input", { bubbles: true })); await sleep(900);
     let liteCur = JSON.parse(W.localStorage.getItem("quizQrusher:lite:current") || "null");
-    check("l6 autosave", liteCur && liteCur.format === "quiz-qrusher-save" && liteCur.attempt.answers.filter(a => a !== null).length === 1 && liteCur.attempt.notes === "lite notes" && liteCur.attempt.flags[1] === 1);
+    check("l6 autosave", liteCur && liteCur.format === "quiz-qrusher-save" && liteCur.attempt.answers.filter(a => a !== null).length === 1 && liteCur.attempt.notes === "lite notes" && liteCur.attempt.flags[1] === 1 && liteCur.attempt.answers[2] === null && liteCur.attempt.struck[2].length === 1 && liteCur.app === "3.0.1");
     check("l6 status check only", $("saveStatus").querySelector(".ic").textContent === "✓" && W.getComputedStyle($("saveStatus").querySelector(".lbl")).display === "none");
     const liteQ1 = D.querySelectorAll(".qblock")[0].querySelector(".qtext").textContent;
     click(D.querySelector('.quizbar [data-go="home"]')); await sleep(300);
@@ -489,6 +511,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("l6 continue after reload", visible("continueCard"));
     click("continueBtn"); await sleep(400);
     check("l6 resumed", visible("quizScreen") && D.querySelectorAll(".qblock")[0].querySelector(".qtext").textContent === liteQ1 && txt("answeredCounter") === "1 of 5 answered  -  1 flagged" && $("noteText").value === "lite notes");
+    check("v301 lite strike resumed", D.querySelectorAll(".qblock")[2].querySelectorAll(".opt")[1].classList.contains("struck"));
     click("exportBtn"); await sleep(300);
     const liteSave = captured[captured.length - 1], liteSaveText = await (await fetch(liteSave.href)).text();
     check("l6 save file", /^qus_input_5_progress_\d{8}\.json$/.test(liteSave.name) && JSON.parse(liteSaveText).attempt.notes === "lite notes", liteSave.name);
@@ -602,7 +625,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("p7 prompt shown", cards[2].querySelector("pre").textContent.indexOf("medical assessment architect") > 0);
     click(D.querySelector('#helpBody [data-tab="feedback"]')); await sleep(400);
     check("p7 feedback", visible("feedbackScreen") && $("feedbackFrame").getAttribute("src") === "https://docs.google.com/forms/d/e/1FAIpQLSdas9u7aNVOe7Oael27TN0RIwML9J9-DSwLZ6Yr3QYeg5IjtA/viewform?embedded=true", $("feedbackFrame").getAttribute("src"));
-    check("p7 env line", /^Quiz Qrusher 3\.0 · (Chrome|Edge|Firefox|Safari) \d+ on \w+/.test(txt("envInfo")), txt("envInfo"));
+    check("p7 env line", /^Quiz Qrusher 3\.0\.1 · (Chrome|Edge|Firefox|Safari) \d+ on \w+/.test(txt("envInfo")), txt("envInfo"));
     const emailRe = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/;
     const idxSrc = await getText("/index.html"), litSrc7 = await getText("/lite.html");
     check("p7 no email address", !emailRe.test(idxSrc) && !emailRe.test(litSrc7), (idxSrc.match(emailRe) || litSrc7.match(emailRe) || [""])[0]);

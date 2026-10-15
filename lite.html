@@ -242,6 +242,14 @@
   .opt.sel .radio::after{transform:scale(1)}
   .opt .otext{font-size:calc(15.5px * var(--fs))}
   .opt .onum{color:var(--muted); font-variant-numeric:tabular-nums; margin-right:2px; font-weight:600}
+  /* v3.0.1 - strike out an option: the button on its right crosses out the text */
+  .ostrike{flex:0 0 auto; margin:-4px -6px -4px auto; display:inline-grid; place-items:center; width:30px; height:30px; padding:0;
+    background:none; border:1px solid transparent; border-radius:8px; color:var(--muted); opacity:.55; transition:opacity .12s ease, background .12s ease}
+  .ostrike svg{width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round}
+  .ostrike:hover{opacity:1; background:var(--surface-2)}
+  .opt.struck .ostrike{opacity:1; color:var(--accent); background:var(--accent-soft)}
+  .opt.struck .otext{text-decoration:line-through; color:var(--muted)}
+  .qblock.revealed .ostrike{display:none}
 
   .endbar{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:18px 20px; margin-top:20px}
   .endbar .btn{font-size:calc(16px * var(--fs)); padding:13px 26px}
@@ -634,7 +642,7 @@ window.qqReadSettings = function(){
       <h2>Taking a quiz</h2>
       <ol>
         <li>Drop a question CSV on Home (headers: Category, Question_Text, Option_1 to Option_6, Correct_Option_Number) and press Start quiz.</li>
-        <li>Answer, flag questions to revisit, and keep notes in the Notes tab on the right.</li>
+        <li>Answer, flag questions to revisit, and keep notes in the Notes tab on the right. The S button at the right of an option strikes it out; click your chosen option again to unselect it.</li>
         <li>Submit to see your score, weak categories and missed questions, then download a follow-up request for your AI model.</li>
       </ol>
       <h2>Saving</h2>
@@ -715,7 +723,7 @@ window.qqReadSettings = function(){
   // (the parser has built everything above; nothing has changed the DOM except the theme attributes on <html>, reset here).
   var SNAPSHOT = ("<!DOCTYPE html>\n" + document.documentElement.outerHTML).replace(/<html[^>]*>/, '<html lang="en">');
 
-  var APP_VERSION = "3.0";
+  var APP_VERSION = "3.0.1"; //v3.0.1
   var NS = "quizQrusher:", LNS = NS + "lite:";      // Lite keys never collide with the full app's
   var LITE_FILE = "quiz_qrusher_v3.0_lite.html";
   var FULL_URL = "https://braxtonstryker.github.io/Quiz_Qrusher/";
@@ -859,7 +867,7 @@ window.qqReadSettings = function(){
       attempt: {
         id: attempt.id, createdAt: attempt.createdAt, updatedAt: attempt.updatedAt, status: attempt.status, mode: attempt.mode,
         questionOrder: attempt.questionOrder, optionOrder: attempt.optionOrder, answers: attempt.answers, flags: attempt.flags,
-        revealed: attempt.revealed, notes: attempt.notes, elapsedMs: attempt.elapsedMs, results: attempt.results,
+        revealed: attempt.revealed, struck: attempt.struck || [], notes: attempt.notes, elapsedMs: attempt.elapsedMs, results: attempt.results, //v3.0.1 - struck: crossed-out option numbers per question
         retake: attempt.retake || null    // optional: {of: parent attempt id, kind: "missed"|"flagged"|"both"}
       }
     };
@@ -888,7 +896,7 @@ window.qqReadSettings = function(){
       id: String(a.id), createdAt: a.createdAt || Date.now(), updatedAt: a.updatedAt || a.createdAt || Date.now(),
       status: a.status === "submitted" ? "submitted" : "in_progress", mode: a.mode === "tutor" ? "tutor" : "test",
       questionOrder: a.questionOrder.slice(), optionOrder: fill(a.optionOrder, []), answers: fill(a.answers, null),
-      flags: fill(a.flags, 0), revealed: fill(a.revealed, null), notes: typeof a.notes === "string" ? a.notes : "",
+      flags: fill(a.flags, 0), revealed: fill(a.revealed, null), struck: fill(a.struck, []), notes: typeof a.notes === "string" ? a.notes : "",
       elapsedMs: a.elapsedMs || 0, results: a.results || null,
       retake: a.retake && a.retake.kind ? { of: String(a.retake.of || ""), kind: String(a.retake.kind) } : null
     };
@@ -1021,7 +1029,7 @@ window.qqReadSettings = function(){
   function newAttempt(){
     var now = Date.now();
     return { id: uid("a"), createdAt: now, updatedAt: now, status: "in_progress", mode: "test",
-             questionOrder: [], optionOrder: [], answers: [], flags: [], revealed: [], notes: "", elapsedMs: 0, results: null, retake: null };
+             questionOrder: [], optionOrder: [], answers: [], flags: [], revealed: [], struck: [], notes: "", elapsedMs: 0, results: null, retake: null }; //v3.0.1 - struck
   }
   function readCurrent(){
     try { var t = localStorage.getItem(CUR_KEY); return t ? parseSaveFile(t) : null; } catch (e){ return null; }
@@ -1043,6 +1051,8 @@ window.qqReadSettings = function(){
       var display = order.map(function(n){ return q.options.filter(function(o){ return o.n === n; })[0]; }).filter(Boolean);
       q.display = display.length === q.options.length ? display : q.options.slice();
       q.flagged = !!(attempt.flags && attempt.flags[idx]);
+      var st = attempt.struck && attempt.struck[idx];                    //v3.0.1 - keep strikes that still name an option
+      q.struck = Array.isArray(st) ? st.filter(function(n){ return q.options.some(function(o){ return o.n === n; }); }) : [];
     });
     var ans = qs.map(function(q, i){
       var a = attempt.answers ? attempt.answers[i] : null;
@@ -1085,6 +1095,7 @@ window.qqReadSettings = function(){
     a.answers = answers.slice();
     a.flags = questions.map(function(q){ return q.flagged ? 1 : 0; });
     a.revealed = questions.map(function(q, i){ return revealed[i] || null; });
+    a.struck = questions.map(function(q){ return (q.struck || []).slice(); }); //v3.0.1
     a.notes = notesText;
     a.updatedAt = Date.now();
   }
@@ -1366,7 +1377,7 @@ window.qqReadSettings = function(){
     scrambleAll(bank.csvText);
     answers = questions.map(function(){ return null; });
     revealed = questions.map(function(){ return null; });
-    questions.forEach(function(q){ q.flagged = false; });
+    questions.forEach(function(q){ q.flagged = false; q.struck = []; }); //v3.0.1 - struck
     notesText = ""; el("noteText").value = ""; noteHint();
     cur = { bank: bank, attempt: newAttempt() };
     lastResults = null; lastSavedAt = 0; saveError = null; lastPromptAt = Date.now();
@@ -1411,6 +1422,21 @@ window.qqReadSettings = function(){
     note.textContent = before === null ? "Revealed — not scored" : before === q.correct ? "Revealed after answering — counts as correct" : "Revealed after answering — counts as incorrect";
     block.appendChild(note);
   }
+  // v3.0.1 - strike-out: q.struck lists the crossed-out option numbers. Call without `on` just to paint.
+  var STRIKE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 7.5C15.7 6 14 5 12 5 9.5 5 7.5 6.4 7.5 8.4c0 1.3.8 2.2 2.4 2.8M7.5 16.5C8.3 18 10 19 12 19c2.5 0 4.5-1.4 4.5-3.5 0-.8-.3-1.5-.8-2M4 12h16"/></svg>';
+  function isStruck(q, n){ return !!q.struck && q.struck.indexOf(n) !== -1; }
+  function setStruck(label, btn, q, n, pos, on){
+    if (on !== undefined){
+      q.struck = (q.struck || []).filter(function(x){ return x !== n; });
+      if (on) q.struck.push(n);
+    }
+    var s = isStruck(q, n);
+    label.classList.toggle("struck", s);
+    btn.setAttribute("aria-pressed", s ? "true" : "false");
+    btn.title = s ? "Struck out - click to restore" : "Strike out this option";
+    btn.setAttribute("aria-label", s ? "Option " + (pos + 1) + " is struck out. Click to restore it." : "Strike out option " + (pos + 1));
+  }
+
   function renderList(){
     var list = el("qList"); list.innerHTML = "";
     questions.forEach(function(q, i){
@@ -1440,12 +1466,27 @@ window.qqReadSettings = function(){
         var txt = document.createElement("span"); txt.className = "otext";
         var num = document.createElement("span"); num.className = "onum"; num.textContent = (pos + 1) + ".";
         txt.appendChild(num); txt.appendChild(document.createTextNode(" " + o.text));
-        label.appendChild(input); label.appendChild(dot); label.appendChild(txt);
+        var strike = document.createElement("button"); strike.type = "button"; strike.className = "ostrike"; strike.innerHTML = STRIKE_SVG; //v3.0.1
+        label.appendChild(input); label.appendChild(dot); label.appendChild(txt); label.appendChild(strike);
         if (answers[i] === o.n){ input.checked = true; label.classList.add("sel"); }
+        setStruck(label, strike, q, o.n, pos);
+        strike.addEventListener("click", function(e){ //v3.0.1 - inside the label, so keep the click from choosing the option
+          e.preventDefault();
+          if (revealed[i]) return;
+          setStruck(label, strike, q, o.n, pos, !isStruck(q, o.n));
+          saveSoon();
+        });
+        input.addEventListener("click", function(){ //v3.0.1 - Lite is always Test mode: clicking the chosen option again clears it
+          if (answers[i] !== o.n || revealed[i]) return;
+          input.checked = false; answers[i] = null;
+          label.classList.remove("sel");
+          updateProgress(); saveSoon();
+        });
         input.addEventListener("change", function(){
           answers[i] = o.n;
           Array.prototype.forEach.call(opts.querySelectorAll(".opt"), function(l){ l.classList.remove("sel"); });
           label.classList.add("sel");
+          if (isStruck(q, o.n)) setStruck(label, strike, q, o.n, pos, false); //v3.0.1 - choosing a struck option un-strikes it
           updateProgress(); saveSoon();
         });
         opts.appendChild(label);

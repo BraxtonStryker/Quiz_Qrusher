@@ -9,7 +9,7 @@
  * - Cache names start with "quizQrusher-": every GitHub Pages project of this user shares the origin.
  */
 "use strict";
-const VERSION = "160ce2881fe0"; // generated: check_shared.py --sync
+const VERSION = "4e458b8587e9"; // generated: check_shared.py --sync
 const CACHE = "quizQrusher-" + VERSION;
 const PRECACHE = [
   "./",
