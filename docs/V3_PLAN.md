@@ -302,11 +302,18 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
     - **Download for offline use** (full app, Home footer): fetches `lite.html`, bakes in the `LITE_KEYS` subset of the current settings plus a fresh nonce, downloads it, and shows a toast suggesting a dedicated "Quiz Qrusher Lite" folder. It needs http(s); from `file://` it says so.
     - **Harness:** 180 checks. The Lite ones cover the hosted flow, baked settings from a file (blob URL stand-in), a rebuilt copy that loads and runs, in-place Apply through the OPFS fake folder, the browser notice, and Download for offline use.
     - **Still to test by hand (Phase 10):** a real `file://` Apply in Chrome/Edge (link Lite's folder, change a setting, Apply → reload), and Firefox `file://` storage sharing between an old and a replaced Lite file.
-- [ ] **7. Content tabs:**
+- [x] **7. Content tabs:**
   - Help (+ What's new, Privacy)
   - Feedback (Form iframe; placeholder until the link arrives)
   - prompts zip + Home footer
-  - GoatCounter (placeholder code until the account exists)
+  - GoatCounter (placeholder code until the account exists): **skipped for now (user, 2026-10-14)**. No analytics code exists. Help → Privacy says no usage stats are collected, and the Settings → Privacy switch still says "Not active yet".
+  - Done 2026-10-14. Notes:
+    - **Home:** a row of buttons under the tiles: **Open Lite version** (user request), **Download for offline use** and **Download prompts** (`prompts/medical/medical_prompts.zip`). The footer has the version and a **What's new** link that jumps into Help.
+    - **Help:** one long page with jump chips covering every section in §2, written subject-agnostic with the medical set as the example. It's rebuilt from the v2.1 PDF but uses the current prompt names (`slide_miner_v1`, `data_sanitizer_v2`, `style_researcher_v2`, `que_generator_v3`) and has no email. Steps 1–3 each have a prompt card with Copy (clipboard, with an `execCommand` fallback), Download, and "Show the prompt". Credits for the Atkinson Hyperlegible font (OFL) and the Feather gear icon (MIT) are in Privacy.
+    - **Prompts:** the text is embedded in `index.html` in a `PROMPTS:medical` block, so the cards work offline. That block and the zip are generated from `prompts/medical/*.md` by `check_shared.py --sync`, and the plain check fails if either is stale. So after editing a prompt, run `--sync`.
+    - **Feedback:** the Google Form (`forms.gle/CYLHooZ76LtAvRGi8`) is embedded at `…/viewform?embedded=true`, with a fallback link. The iframe `src` is set only when the tab opens, so nothing loads from Google before that. The form has no "App version"/"Browser" questions, so there's **no prefill**. Instead the tab shows "Quiz Qrusher 3.0 · Chrome 155 on Windows" with a Copy button. If those two short-answer questions are added later, prefill is a small change: append `&entry.<id>=` values to the URL.
+    - **Lite:** its Help gained a Feedback line (an external link), and it inherits the shared Help styles.
+    - **Harness:** 192 checks. Phase 7 covers the Home buttons, that the zip is served, What's new, prompt Download matching the source file, Copy, the lazy feedback iframe, the environment line, and a scan showing **no email address** appears in `index.html` or `lite.html`.
 - [ ] **8. PWA:** manifest, service worker (versioned cache, update toast), icons.
 - [ ] **9. Prompt Builder** (generic subject templates).
 - [ ] **10. Release:**
@@ -318,8 +325,8 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
 ---
 
 ## 5. Open items (ask the user when you reach them)
-1. **Google Form link (Phase 7):** the user is creating it. If prefilling is wanted, the form needs "App version" and "Browser" short-answer fields. Use a placeholder until the link arrives.
-2. **GoatCounter site code (Phase 7):** the user needs an account at goatcounter.com. Use a placeholder until then.
+1. **GoatCounter (deferred):** analytics was skipped on 2026-10-14. If wanted later, the user needs an account at goatcounter.com. Respect the Privacy setting and Do Not Track, never send quiz content or file names, keep it out of Lite, and update Help → Privacy.
+2. **Feedback prefill (optional):** the form has no "App version"/"Browser" questions. If the user adds them, pass their entry IDs in the embed URL.
 
 Resolved on 2026-10-14:
 - `gh` is logged in.

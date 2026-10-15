@@ -574,6 +574,33 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     click("toastYes"); await sleep(100);
     }
 
+    // ======== Phase 7: Home links, Help (prompts), Feedback, no email anywhere ========
+    click(D.querySelector('.tab[data-tab="home"]')); await sleep(300);
+    check("p7 lite button", $("openLiteBtn").getAttribute("href") === "lite.html");
+    const zipRes = await fetch(new URL($("downloadPromptsBtn").getAttribute("href"), W.location.href));
+    check("p7 prompts zip", $("downloadPromptsBtn").hasAttribute("download") && zipRes.ok && (await zipRes.arrayBuffer()).byteLength > 1000);
+    check("p7 help frame not loaded yet", !$("feedbackFrame").getAttribute("src"));
+    click("whatsNewBtn"); await sleep(300);
+    check("p7 what's new", visible("helpScreen") && txt("help-whatsnew") === "What's new" && D.querySelectorAll(".versions dt").length >= 9);
+    check("p7 help sections", D.querySelectorAll(".helpnav button").length === 10 && [...D.querySelectorAll(".helpnav button")].every(b => $(b.getAttribute("data-help"))));
+    const cards = D.querySelectorAll(".promptcard");
+    check("p7 prompt cards", cards.length === 4 && [...cards].map(c => c.querySelector(".pname").textContent).join() === "slide_miner_v1.md,data_sanitizer_v2.md,style_researcher_v2.md,que_generator_v3.md");
+    const nCap7 = captured.length;
+    [...cards[3].querySelectorAll("button")].find(b => b.textContent === "Download").click(); await sleep(300);
+    const pdl = captured[captured.length - 1];
+    const srcPrompt = (await getText("/prompts/medical/que_generator_v3.md")).replace(/\r\n/g, "\n");
+    check("p7 prompt download", captured.length === nCap7 + 1 && pdl.name === "que_generator_v3.md" && (await (await fetch(pdl.href)).text()) === srcPrompt);
+    const copyBtn = [...cards[0].querySelectorAll("button")].find(b => b.textContent === "Copy");
+    copyBtn.click(); await sleep(400);
+    check("p7 prompt copy", copyBtn.textContent === "Copied");
+    check("p7 prompt shown", cards[2].querySelector("pre").textContent.indexOf("medical assessment architect") > 0);
+    click(D.querySelector('#helpBody [data-tab="feedback"]')); await sleep(400);
+    check("p7 feedback", visible("feedbackScreen") && $("feedbackFrame").getAttribute("src") === "https://docs.google.com/forms/d/e/1FAIpQLSdas9u7aNVOe7Oael27TN0RIwML9J9-DSwLZ6Yr3QYeg5IjtA/viewform?embedded=true", $("feedbackFrame").getAttribute("src"));
+    check("p7 env line", /^Quiz Qrusher 3\.0 · (Chrome|Edge) \d+ on \w+/.test(txt("envInfo")), txt("envInfo"));
+    const emailRe = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/;
+    const idxSrc = await getText("/index.html"), litSrc7 = await getText("/lite.html");
+    check("p7 no email address", !emailRe.test(idxSrc) && !emailRe.test(litSrc7), (idxSrc.match(emailRe) || litSrc7.match(emailRe) || [""])[0]);
+
     // ---- tabs
     click(D.querySelector('.tab[data-tab="help"]')); await sleep(100);
     check("help tab", visible("helpScreen") && D.querySelector('.tab[data-tab="help"]').getAttribute("aria-current") === "page");

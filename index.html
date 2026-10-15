@@ -137,6 +137,36 @@
   .ok{margin-top:16px; padding:14px; border-radius:var(--radius-sm); background:var(--good-soft); color:var(--ink); font-size:calc(14.5px * var(--fs))}
   .ok .actions{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
   .placeholder p{margin:10px 0 0}
+  /* ---------- Home links, Help, Feedback ---------- */ /*v3.0 - Phase 7*/
+  a.btn{text-decoration:none; display:inline-block}                  /* links styled as buttons */
+  .homelinks{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:18px}
+  .helpbody h2{font-size:calc(19px * var(--fs)); margin:30px 0 8px; scroll-margin-top:12px}
+  .helpbody h3{font-size:calc(15.5px * var(--fs)); margin:18px 0 4px}
+  .helpbody p, .helpbody li{color:var(--ink); font-size:calc(15px * var(--fs))}
+  .helpbody li{margin:4px 0}
+  .helpbody code{font-family:ui-monospace,Consolas,monospace; font-size:calc(13.5px * var(--fs)); background:var(--surface-2); border:1px solid var(--line); border-radius:5px; padding:0 4px}
+  .helpnav{display:flex; flex-wrap:wrap; gap:6px; margin-top:14px}
+  .helpnav button{border:1px solid var(--line); background:var(--surface-2); color:var(--ink); border-radius:999px; padding:5px 12px; font-size:calc(13px * var(--fs)); font-weight:600}
+  .helpnav button:hover{border-color:var(--accent); color:var(--accent)}
+  .helptable{width:100%; border-collapse:collapse; margin:10px 0; font-size:calc(14px * var(--fs))}
+  .helptable th, .helptable td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+  .helptable th{color:var(--muted); font-weight:650}
+  .note{border-left:4px solid var(--warn); background:var(--warn-soft); padding:10px 14px; border-radius:var(--radius-sm); margin:12px 0}
+  .note p{margin:0}
+  .step{border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 16px; margin:12px 0; background:var(--surface)}
+  .step h3{margin-top:0}
+  .step .num{display:inline-block; font-size:calc(12px * var(--fs)); font-weight:700; color:var(--on-accent); background:var(--accent); border-radius:6px; padding:1px 8px; margin-right:8px; vertical-align:1px}
+  .promptcard{border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px; margin:10px 0 4px; background:var(--surface-2)}
+  .promptcard .ptop{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .promptcard .pname{flex:1; min-width:160px; font-family:ui-monospace,Consolas,monospace; font-size:calc(13.5px * var(--fs)); font-weight:600}
+  .promptcard details{margin-top:8px}
+  .promptcard summary{cursor:pointer; color:var(--muted); font-size:calc(13px * var(--fs))}
+  .promptcard pre{white-space:pre-wrap; overflow-wrap:anywhere; font-size:calc(12.5px * var(--fs)); line-height:calc(1.45 * var(--lh)); background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:10px; max-height:320px; overflow:auto}
+  .versions dt{font-weight:700; margin-top:14px}
+  .versions dd{margin:4px 0 0 0; color:var(--ink)}
+  .fbframe{width:100%; height:1150px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface); margin-top:12px}
+  .envline{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; padding:10px 12px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm)}
+  .envline code{flex:1; min-width:200px; font-family:ui-monospace,Consolas,monospace; font-size:calc(13px * var(--fs))}
 
   /* ---------- Start ---------- */
   .hero{padding:34px 30px 30px}
@@ -460,9 +490,13 @@
         <span class="tt">Import previous quiz</span><span class="ts">A backup (.json), a v2 save (.txt), or a CSV</span>
       </button>
     </div>
+    <div class="homelinks"> <!--v3.0 - Phase 7-->
+      <a class="btn sm subtle" id="openLiteBtn" href="lite.html">Open Lite version</a>
+      <button class="btn sm subtle" id="downloadLiteBtn" type="button">Download for offline use</button> <!--v3.0 - Phase 6: Lite with your settings baked in-->
+      <a class="btn sm subtle" id="downloadPromptsBtn" href="prompts/medical/medical_prompts.zip" download="medical_prompts.zip">Download prompts</a>
+    </div>
     <p class="homefoot muted">
-      <button class="linkbtn" id="downloadLiteBtn" type="button">Download for offline use</button> <!--v3.0 - Phase 6: Lite with your settings baked in-->
-      &middot; Quiz Qrusher v<span id="appVersion"></span> &middot; preview build
+      Quiz Qrusher v<span id="appVersion"></span> &middot; preview build &middot; <button class="linkbtn" id="whatsNewBtn" type="button">What's new</button>
     </p>
   </section>
 
@@ -656,15 +690,126 @@
   </section>
   <section id="helpScreen" class="hidden">
     <div class="backbar hidden" id="helpBackBar"><button class="linkbtn back" id="helpBackBtn" type="button">&larr; Back to quiz</button></div> <!--v3.0-->
-    <div class="card hero placeholder">
+    <div class="card hero helpbody" id="helpBody"> <!--v3.0 - Phase 7: replaces the old PDF guides-->
       <h1>Help</h1>
-      <p class="muted">The full guide is being rebuilt for version 3. Quick start:</p>
+      <p class="lede" style="margin-bottom:0">Quiz Qrusher turns your course material into multiple-choice practice quizzes: AI models write the questions as a CSV, and this app runs the quiz, grades it, and shows where to focus next. It works for any subject; the prompts below are the medical-school set, used here as the worked example.</p>
+      <nav class="helpnav" aria-label="Help sections">
+        <button type="button" data-help="help-start">Getting started</button>
+        <button type="button" data-help="help-ai">The AI workflow</button>
+        <button type="button" data-help="help-quiz">Taking a quiz</button>
+        <button type="button" data-help="help-saving">Saving and resuming</button>
+        <button type="button" data-help="help-review">Review and retake</button>
+        <button type="button" data-help="help-followup">Follow-up requests</button>
+        <button type="button" data-help="help-lite">Lite version</button>
+        <button type="button" data-help="help-settings">Settings</button>
+        <button type="button" data-help="help-privacy">Privacy</button>
+        <button type="button" data-help="help-whatsnew">What's new</button>
+      </nav>
+
+      <h2 id="help-start">Getting started</h2>
       <ol>
-        <li>Generate a question CSV with the AI prompts (headers: Category, Question_Text, Option_1 to Option_6, Correct_Option_Number).</li>
-        <li>On Home, choose <strong>Start new quiz</strong> and drop in the CSV.</li>
-        <li>Answer, flag and take notes. Everything saves automatically in this browser.</li>
-        <li>Submit to see your score, weak categories and missed questions, then download a follow-up request.</li>
+        <li>Make a question CSV with the AI workflow below. Its header row is <code>Category, Question_Text, Option_1</code> &hellip; <code>Option_6, Correct_Option_Number</code> (the correct option is a number from 1 to 6). <button class="linkbtn" type="button" id="helpTemplateBtn">Download an example CSV</button></li>
+        <li>On Home, choose <strong>Start new quiz</strong> and drop the CSV in. It's kept as a question bank, so you can retake it any time.</li>
+        <li>Answer the questions. Progress saves automatically; there's no save button to remember.</li>
+        <li>Submit to see your score, your weak categories and every missed question, then download a follow-up request to target your weak spots.</li>
       </ol>
+
+      <h2 id="help-ai">The AI workflow</h2>
+      <p>Each step uses the model that's best at that job. If you don't pay for one of them, use its free tier until you hit the limit, then switch to whichever model you have.</p>
+      <table class="helptable">
+        <thead><tr><th>Step</th><th>Task</th><th>Prompt</th><th>Suggested model</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Extract the lecture data</td><td><code>slide_miner_v1.md</code></td><td>Gemini or Copilot (handle large slide decks and transcripts)</td></tr>
+          <tr><td>1.5</td><td>Optional: filter to the learning objectives</td><td><code>data_sanitizer_v2.md</code></td><td>Gemini</td></tr>
+          <tr><td>2</td><td>Plan the question style</td><td><code>style_researcher_v2.md</code></td><td>ChatGPT (precise rule-following)</td></tr>
+          <tr><td>3</td><td>Write the questions</td><td><code>que_generator_v3.md</code></td><td>Claude (careful reasoning and clean CSV)</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><p>Turn on each model's strongest reasoning mode (for example Gemini Pro with extended thinking, Copilot "Think Deeper", ChatGPT "Think", Claude's largest model at high effort). Always start a <strong>new</strong> chat for each step.</p></div>
+
+      <div class="step"><h3><span class="num">Step 1</span>Extract the lecture data</h3>
+        <ul><li>Paste <code>slide_miner_v1.md</code> into a new Gemini or Copilot chat and attach your lecture slides (and transcript, if you have one).</li>
+        <li>Save the reply as <code>slide_data.md</code>.</li></ul>
+        <div class="promptslot" data-prompt="slide_miner_v1.md"></div>
+      </div>
+      <div class="step"><h3><span class="num">Step 1.5</span>Optional: filter to the objectives</h3>
+        <ul><li>Paste <code>data_sanitizer_v2.md</code> into a new Gemini chat and attach <code>slide_data.md</code>, the transcripts and the learning objectives.</li>
+        <li>Save the reply as <code>slide_data(cleaned).md</code> and use it instead of <code>slide_data.md</code> from here on.</li></ul>
+        <div class="promptslot" data-prompt="data_sanitizer_v2.md"></div>
+      </div>
+      <div class="step"><h3><span class="num">Step 2</span>Plan the question style</h3>
+        <ul><li>Paste <code>style_researcher_v2.md</code> into a new ChatGPT chat and answer its short questions about your current block (topics, professor hints).</li>
+        <li>Save the reply as <code>question_styling.md</code>.</li></ul>
+        <div class="promptslot" data-prompt="style_researcher_v2.md"></div>
+      </div>
+      <div class="step"><h3><span class="num">Step 3</span>Write the questions</h3>
+        <ul><li>Paste <code>que_generator_v3.md</code> into a new Claude chat and attach <code>slide_data.md</code> (or the cleaned version) and <code>question_styling.md</code>.</li>
+        <li>Save the CSV it returns, e.g. <code>question_input_10252312.csv</code> (named by month, day, year and hour).</li></ul>
+        <div class="promptslot" data-prompt="que_generator_v3.md"></div>
+      </div>
+      <div class="step"><h3><span class="num">Step 4</span>Take the quiz</h3>
+        <ul><li>On Home, choose <strong>Start new quiz</strong> and drop in the CSV from Step 3.</li></ul>
+      </div>
+      <div class="step"><h3><span class="num">Step 5</span>Review and follow up</h3>
+        <ul><li>After you submit, download the <strong>Follow-up request</strong> and paste it, with your report and <code>slide_data.md</code>, into Claude for a new set aimed at your misses. Ask it to raise the difficulty if the questions felt easy.</li></ul>
+      </div>
+      <p>Other subjects: the prompts are written for medical school, but the workflow is the same anywhere. Edit the role and audience lines (for example "first-year medical student") to fit your course. A Prompt Builder for any subject is coming.</p>
+
+      <h2 id="help-quiz">Taking a quiz</h2>
+      <ul>
+        <li><strong>Flags:</strong> the flag in a question's corner marks it to revisit. You're warned at Submit if any are still flagged, and you can retake just the flagged ones later.</li>
+        <li><strong>Notes:</strong> the NOTES tab on the right opens a notepad that's saved with the quiz.</li>
+        <li><strong>Tutor and Test mode:</strong> the TUTOR MODE switch above Notes adds a <strong>Show answer</strong> button to every question. Revealing locks the question. A question revealed before you answered isn't scored ("Revealed &mdash; not scored"); if you answered first, it counts as answered, right or wrong.</li>
+        <li><strong>Timer:</strong> &#x23F1; in the quiz bar counts only while the quiz is on screen. It can be turned off in Settings.</li>
+        <li><strong>Back:</strong> your browser's Back button returns to Home, and the quiz picks up where you left off.</li>
+      </ul>
+
+      <h2 id="help-saving">Saving and resuming</h2>
+      <ul>
+        <li><strong>Autosave:</strong> every answer, flag and note saves in this browser right away. The green &#x2713; in the quiz bar confirms it (hover for details). Find unfinished quizzes under <strong>Resume previous quiz</strong>.</li>
+        <li><strong>Saves folder (Chrome or Edge on a computer):</strong> link a folder in Settings and every quiz is also written there as a <code>.json</code> file. Browsers ask for permission again after a restart, so press <strong>Reconnect folder</strong> when it appears. Use a dedicated folder; in iCloud Drive or OneDrive, set it to "Always keep on this device".</li>
+        <li><strong>Export and import:</strong> <strong>Export backup</strong> downloads one quiz as a <code>.json</code> file (the questions travel inside it). Settings &gt; Data &gt; <strong>Export all</strong> saves everything at once. Bring either back with <strong>Import previous quiz</strong>, which also accepts version 2 <code>.txt</code> saves (with their CSV) and plain CSVs.</li>
+        <li><strong>Browser limits:</strong> Safari can delete a site's stored data after about seven days without a visit, and private windows keep nothing. In those browsers, export backups or turn on the save-file prompts in Settings &gt; Saving. The "works best on Chrome or Edge" notice can come back after such a wipe even if you chose "Don't show again".</li>
+      </ul>
+
+      <h2 id="help-review">Review and retake</h2>
+      <ul>
+        <li><strong>Review previous quiz</strong> lists submitted quizzes with their scores. Open one to see its results again.</li>
+        <li><strong>Retake</strong> starts a fresh, reshuffled attempt: all questions, or just the <strong>missed</strong>, <strong>flagged</strong>, or <strong>missed + flagged</strong> ones.</li>
+        <li><strong>Category trends</strong> appear once a question bank has two or more full attempts, showing each category's score over time.</li>
+      </ul>
+
+      <h2 id="help-followup">Follow-up requests</h2>
+      <p>The <strong>Follow-up request (.md)</strong> on Results is a ready-to-send prompt listing your weak categories, the concepts you missed and the wrong answers you chose. Pick a difficulty and question count (defaults are in Settings), download it, and give it to Claude with your <code>slide_data.md</code> and <code>question_styling.md</code>. You can also download the <strong>Quiz Report (.txt)</strong> and <strong>Missed Questions (.csv)</strong>.</p>
+
+      <h2 id="help-lite">Lite version</h2>
+      <p>Lite is a single file that works offline, keeps one quiz at a time, and carries its settings inside itself. <button class="linkbtn" type="button" id="helpOpenLiteBtn">Open Lite</button> or use <strong>Download for offline use</strong> on Home, which bakes your current settings into the copy. Keep it in its own folder (for example "Quiz Qrusher Lite"). In Chrome or Edge, link that folder in Lite's Settings: saves go into a <code>saves</code> folder beside it, and <strong>Apply</strong> updates the Lite file directly. Otherwise Apply downloads a new copy to put in place of the old one.</p>
+
+      <h2 id="help-settings">Settings</h2>
+      <p>The &#x2699; in the top right corner. Appearance (theme, accent color, color-blind-safe colors, reduced motion), text (size, line spacing, an easy-to-read font), quiz options (shuffling, category tags, the submit warning, the Focus cut-off, Tutor mode, timer), follow-up defaults, saving, and data tools (storage use, Export all, Clear all). Changes apply right away.</p>
+
+      <h2 id="help-privacy">Privacy</h2>
+      <ul>
+        <li>Your question banks, quizzes, notes and settings stay in this browser, and in your saves folder if you link one. Nothing is uploaded.</li>
+        <li>The app loads nothing from other sites; its fonts and icons are built in. It doesn't collect usage statistics.</li>
+        <li>The <strong>Feedback</strong> tab shows a Google Form, which loads only when you open that tab. What you send there goes to the developer through Google Forms, under Google's privacy policy.</li>
+      </ul>
+      <p class="muted" style="font-size:calc(13px * var(--fs))">Credits: Atkinson Hyperlegible font &copy; 2020 Braille Institute of America, Inc., SIL Open Font License 1.1. Gear icon after Feather Icons (MIT).</p>
+
+      <h2 id="help-whatsnew">What's new</h2>
+      <dl class="versions">
+        <dt>v3.0 (preview)</dt>
+        <dd>A Home screen with a library of question banks, autosave, Resume / Review / Import, export backups, Chrome/Edge saves folder with Reconnect, Tutor mode with Show answer, a timer, retakes of missed or flagged questions, category trends, Settings (themes, accent colors, color-blind-safe colors, text size, fonts, quiz options), the Lite version, this Help guide and a Feedback form.</dd>
+        <dt>v2.3.3</dt><dd>Save progress to a .txt file and resume by dropping it on the start screen.</dd>
+        <dt>v2.3.2</dt><dd>Flag questions, a notes dock, and sturdier resume codes that carry flags and notes.</dd>
+        <dt>v2.3.1</dt><dd>Clearer start screen: the drop zone turns green once a CSV is loaded.</dd>
+        <dt>v2.3</dt><dd>Question order is shuffled too, and resume codes let you continue a quiz later.</dd>
+        <dt>v2.2</dt><dd>The category tag is hidden while you take the quiz.</dd>
+        <dt>v2.1</dt><dd>Renamed from Quiz Runner to Quiz Qrusher.</dd>
+        <dt>v2.0</dt><dd>Lenient CSV reading: stray quotes, annotated headers and different line endings all load.</dd>
+        <dt>v1</dt><dd>The first offline quiz app: load a CSV, take the quiz, see weak categories, export a follow-up request.</dd>
+      </dl>
+      <p>Something wrong, or an idea? Use the <button class="linkbtn" type="button" data-tab="feedback">Feedback</button> tab.</p>
     </div>
   </section>
   <section id="settingsScreen" class="hidden"> <!--v3.0 - rows are built from SETTINGS_UI in the script-->
@@ -672,10 +817,13 @@
     <p class="muted" style="margin:6px 0 0">Changes apply right away and are saved in this browser.</p>
     <div id="settingsBody"></div>
   </section>
-  <section id="feedbackScreen" class="hidden">
-    <div class="card hero placeholder">
+  <section id="feedbackScreen" class="hidden"> <!--v3.0 - Phase 7: Google Form, loaded only when this tab opens-->
+    <div class="card hero">
       <h1>Feedback</h1>
-      <p class="muted">A feedback form is coming in a later update.</p>
+      <p class="lede" style="margin-bottom:0">Found a bug, want a feature, or have an idea for another app? Tell us below. If you're reporting a problem, paste this line into your answer:</p>
+      <div class="envline"><code id="envInfo"></code><button class="btn sm subtle" id="copyEnvBtn" type="button">Copy</button></div>
+      <iframe class="fbframe" id="feedbackFrame" title="Quiz Qrusher feedback form"></iframe>
+      <p class="muted" style="font-size:calc(13px * var(--fs))">Form not showing (offline, or blocked by the browser)? <a href="https://forms.gle/CYLHooZ76LtAvRGi8" target="_blank" rel="noopener">Open it in a new tab</a>.</p>
     </div>
   </section>
 
@@ -1276,6 +1424,8 @@
     if (quizOnScreen() && id !== "quizScreen" && cur){ timerPause(); saveNow(); } //v3.0 - stop the clock and flush notes before leaving the quiz
     hideToast();                                                      //v3.0
     if (id === "settingsScreen") renderSettings();                    //v3.0
+    if (id === "helpScreen") renderPrompts();                         //v3.0 - Phase 7
+    if (id === "feedbackScreen") openFeedback();                      //v3.0 - Phase 7
     SCREENS.forEach(function(s){ el(s).classList.toggle("hidden", s !== id); });
     var tab = TAB_OF[id] || "home";
     Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(t){
@@ -2626,6 +2776,71 @@
     showToast("Download a save file of your progress so far?", "Download", function(){ exportCurrent(); });
   }
 
+  /* ---------- Help: prompts with Copy / Download ---------- */ //v3.0 - Phase 7
+  /* === PROMPTS:medical === */
+  var PROMPTS = {
+    "slide_miner_v1.md": "# data_mining_prompt.md\n\n**Role:** You are an expert data-extraction AI specializing in medical school curriculum analysis. \n\n**Task:** Your objective is to parse through the provided lecture slides and transcript materials to extract and structure the data specifically for downstream LLM question generation. Your focus is strictly on data mining and categorization, not crafting the questions yourself.\n\n**Instructions:**\n1. **Identify Learning Objectives:** Extract any formal learning objectives, competencies, or study questions that dictate what the student is expected to understand[cite: 1]. \n2. **Concept Extraction:** Create a structured list of major testable concepts[cite: 1]. \n    * Extract major diseases, pathways, mechanisms, drugs, and treatments[cite: 1].\n    * Identify bolded, highlighted, or underlined slide material, as well as repeated concepts from the transcript[cite: 1].\n    * Extract data from major figures, diagrams, and tables[cite: 1].\n3. **Data Formatting:** Structure this extracted data hierarchically. Group related pathways, clinical manifestations, and biochemical consequences under their respective learning objectives so the downstream model can easily track causal sequences.\n4. **Constraints:** Do not omit complex mechanisms, but reduce them to easily readable bullet points. \n\n**Output Requirement:** Output the finalized, structured extracted data as a markdown file named exactly `slide_data.md`. Wrap the entire output in a single markdown code block.",
+    "data_sanitizer_v2.md": "# data_sanitizer_v2.md\n\n**Role:** You are an expert medical curriculum data synthesizer and editor.\n\n**Task:** You will receive three inputs: `slide_data.md` (the raw extracted concepts), the raw lecture transcripts, and the official learning objectives. Your goal is to filter, refine, and sanitize this data so that only highly testable, objective-driven material remains, formatted perfectly for downstream question generation. \n\n**Instructions:**\n1. **Objective Alignment:** Cross-reference every concept in `slide_data.md` with the learning objectives. If a concept in the raw data does not directly support or relate to a learning objective, remove it. \n2. **Transcript Integration:** Read the provided transcript to identify lecturer emphasis. Ensure that any clinical correlations, step-by-step mechanisms, or repeatedly emphasized points from the transcript are explicitly added to their relevant concepts in the data.\n3. **Mechanism & Clinical Focus:** Medical board questions require double-jump reasoning. Ensure that for every disease or drug listed, its *underlying mechanism*, *clinical presentation*, and *downstream consequences* are clearly linked. Do not leave isolated facts; connect them logically.\n4. **Formatting:** Structure the output hierarchically. Group the cleaned data under their specific Learning Objectives. Under each objective, use bullet points to detail the Critical Concepts, Mechanisms, and Clinical Presentations.\n\n**Output Requirement:** Output the finalized, filtered data as a markdown file named exactly `slide_data(cleaned).md`. Wrap the entire output in a single markdown code block.",
+    "style_researcher_v2.md": "## question_styling_prompt.md\n\nRole:\nYou are a medical assessment architect. Your purpose is NOT to write questions. Your purpose is to create a complete exam blueprint that another LLM can immediately execute.\n\nTask:\nReview the requested M1 topics and generate a file named question_styling.md that contains all stylistic, difficulty, reasoning, and scope requirements for question generation.\n\nGoals:\n1. Eliminate ambiguity for the downstream question generator.\n2. Pre-decide difficulty calibration.\n3. Pre-decide question scope.\n4. Pre-decide reasoning complexity.\n5. Reduce generator inference work and maximize generation speed.\n\nBefore generating the blueprint:\n- Ask the user for current block topics.\n- Ask for any professor-specific instructions or high-yield areas.\n\nCalibration Rules:\n\nAudience:\n- First-year medical student.\n- First block curriculum unless otherwise specified.\n\nKnowledge Scope:\n- Only test concepts explicitly found in uploaded lecture materials.\n- No outside diseases, pathways, drugs, or mechanisms unless directly included in source content.\n\nDifficulty Framework:\n\nEasy (10-15%)\n- One-step application.\n- No pure recall.\n- Requires interpretation rather than memorization.\n\nModerate (50-60%)\n- Two-step reasoning.\n- Identify concept → apply mechanism.\n- Mechanism → predict outcome.\n\nHard (25-35%)\n- Multi-step causal chains.\n- Clinical finding → mechanism → prediction.\n- Experimental finding → pathway → consequence.\n- Compare similar concepts and identify distinguishing features.\n\nQuestion Requirements:\n- No standalone fact-recall questions.\n- No definition questions.\n- No terminology identification questions.\n\nEvery question must require:\n1. Interpretation\n2. Reasoning\n3. Application\n\nPreferred reasoning chains:\n- Symptom → mechanism\n- Mechanism → consequence\n- Structure → function → pathology\n- Experiment → observation → conclusion\n- Perturbation → pathway change → outcome\n\nVignette Rules:\n- Use clinical vignettes whenever clinically appropriate.\n- Otherwise use laboratory, molecular, physiology, histology, or experimental scenarios.\n- Keep clinical details relevant to the tested concept.\n\nDistractor Rules:\n- Distractors must be plausible.\n- Distractors should represent nearby concepts, competing mechanisms, related pathways, or commonly confused structures.\n- Avoid obviously incorrect answers.\n\nM1 Scope Protection:\n- Do not artificially force Step-level complexity beyond curriculum coverage.\n- Complexity should arise from reasoning depth, not obscure facts.\n\nOutput Requirements:\nGenerate a file called question_styling.md containing:\n1. Audience description\n2. Allowed content scope\n3. Difficulty distribution\n4. Reasoning requirements\n5. Vignette requirements\n6. Distractor construction rules\n7. Prohibited question types\n8. Concept coverage priorities\n9. Any professor-specific directives\n\nThe output should function as a complete blueprint that allows a question generator to immediately write questions without independently deciding style, difficulty, or scope.\n",
+    "que_generator_v3.md": "## que_generator_v3.md\n\nRole:\nYou are an expert USMLE-style question writer.\n\nTask:\nYou will receive:\n1. slide_data.md\n2. question_styling.md\n\nYour job is to generate questions by EXECUTING the blueprint in question_styling.md.\n\nCore Principle:\n- Do not independently determine difficulty, scope, reasoning depth, vignette style, or distractor construction.\n- Follow the blueprint exactly.\n- Treat question_styling.md as the authoritative exam specification.\n\nRequirements:\n- Use only information from the lecture material.\n- Create exactly six answer choices (A-F).\n- Maintain a single best answer.\n- Randomize answer positions.\n- Generate at least 20 questions or the maximum supported by the content unless I specify otherwise.\n\nQuestion Construction Workflow:\n1. Identify concepts from lecture content.\n2. Match concepts to blueprint difficulty distribution.\n3. Apply blueprint reasoning requirements.\n4. Apply blueprint vignette requirements.\n5. Apply blueprint distractor requirements.\n6. Generate final questions.\n\nOutput Format:\nCSV columns:\nCategory, Question_Text, Option_1, Option_2, Option_3, Option_4, Option_5, Option_6, Correct_Option_Number\n\nFile name:\nquestion_input_[MMDDYYHH].csv\n"
+  }; // generated from prompts/medical by test-data/harness/check_shared.py --sync
+  /* === /PROMPTS === */
+  function copyText(text){
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text).catch(function(){ return copyFallback(text); });
+    return Promise.resolve(copyFallback(text));
+  }
+  function copyFallback(text){
+    var t = document.createElement("textarea"); t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); } catch (e){}
+    document.body.removeChild(t);
+  }
+  function flash(btn, label){ var old = btn.textContent; btn.textContent = label; setTimeout(function(){ btn.textContent = old; }, 1500); }
+  function renderPrompts(){
+    Array.prototype.forEach.call(document.querySelectorAll(".promptslot"), function(slot){
+      if (slot.childNodes.length) return;
+      var name = slot.getAttribute("data-prompt"), text = PROMPTS[name];
+      if (!text) return;
+      var card = document.createElement("div"); card.className = "promptcard";
+      var top = document.createElement("div"); top.className = "ptop";
+      var nm = document.createElement("span"); nm.className = "pname"; nm.textContent = name; top.appendChild(nm);
+      var copy = document.createElement("button"); copy.type = "button"; copy.className = "btn sm"; copy.textContent = "Copy";
+      copy.setAttribute("aria-label", "Copy " + name);
+      copy.addEventListener("click", function(){ copyText(text).then(function(){ flash(copy, "Copied"); }); });
+      var dl = document.createElement("button"); dl.type = "button"; dl.className = "btn sm subtle"; dl.textContent = "Download";
+      dl.setAttribute("aria-label", "Download " + name);
+      dl.addEventListener("click", function(){ download(text, name, "text/markdown"); });
+      top.appendChild(copy); top.appendChild(dl);
+      var det = document.createElement("details"), sum = document.createElement("summary"), pre = document.createElement("pre");
+      sum.textContent = "Show the prompt"; pre.textContent = text;
+      det.appendChild(sum); det.appendChild(pre);
+      card.appendChild(top); card.appendChild(det);
+      slot.appendChild(card);
+    });
+  }
+  function helpJump(id){
+    show("helpScreen");
+    var t = el(id);
+    if (t) t.scrollIntoView();
+  }
+
+  /* ---------- Feedback ---------- */ //v3.0 - Phase 7
+  var FEEDBACK_EMBED = "https://docs.google.com/forms/d/e/1FAIpQLSdas9u7aNVOe7Oael27TN0RIwML9J9-DSwLZ6Yr3QYeg5IjtA/viewform?embedded=true";
+  function envLine(){
+    var ua = navigator.userAgent, m, b = "unknown browser";
+    if ((m = ua.match(/Edg\/(\d+)/))) b = "Edge " + m[1];
+    else if ((m = ua.match(/Firefox\/(\d+)/))) b = "Firefox " + m[1];
+    else if ((m = ua.match(/Chrome\/(\d+)/))) b = "Chrome " + m[1];
+    else if ((m = ua.match(/Version\/(\d+).*Safari/))) b = "Safari " + m[1];
+    var os = /Windows/.test(ua) ? "Windows" : /iPhone|iPad/.test(ua) ? "iOS" : /Mac OS X/.test(ua) ? "macOS" : /Android/.test(ua) ? "Android" : /Linux/.test(ua) ? "Linux" : "";
+    return "Quiz Qrusher " + APP_VERSION + " \u00B7 " + b + (os ? " on " + os : "");
+  }
+  function openFeedback(){
+    el("envInfo").textContent = envLine();
+    var f = el("feedbackFrame");
+    if (!f.getAttribute("src")) f.setAttribute("src", FEEDBACK_EMBED);   // nothing loads from Google until this tab opens
+  }
+
   /* ---------- Notes dock ---------- */ //v2.3.2
   function setNotesOpen(open){
     el("notePanel").classList.toggle("hidden", !open);
@@ -2704,6 +2919,14 @@
   el("toastNo").addEventListener("click", hideToast);
   el("useFullBtn").addEventListener("click", closeBrowserNotice);
   el("downloadLiteBtn").addEventListener("click", downloadLite); //v3.0 - Phase 6
+  // Help and Feedback //v3.0 - Phase 7
+  Array.prototype.forEach.call(document.querySelectorAll("[data-help]"), function(b){
+    b.addEventListener("click", function(){ var t = el(b.getAttribute("data-help")); if (t) t.scrollIntoView({ behavior: "smooth" }); });
+  });
+  el("whatsNewBtn").addEventListener("click", function(){ helpJump("help-whatsnew"); });
+  el("helpTemplateBtn").addEventListener("click", function(){ download(templateCsv(), "quiz_template.csv", "text/csv"); });
+  el("helpOpenLiteBtn").addEventListener("click", function(){ location.href = "lite.html"; });
+  el("copyEnvBtn").addEventListener("click", function(){ var b = el("copyEnvBtn"); copyText(envLine()).then(function(){ flash(b, "Copied"); }); });
   // saves folder: the quiz-bar button and both banners run the fix for the current problem //v3.0 - Phase 5
   var runFolderFix = function(){ folderAction().run(); };   // must stay inside the click: permission prompts need it
   el("reconnectBtn").addEventListener("click", runFolderFix);

@@ -140,6 +140,36 @@
   .ok{margin-top:16px; padding:14px; border-radius:var(--radius-sm); background:var(--good-soft); color:var(--ink); font-size:calc(14.5px * var(--fs))}
   .ok .actions{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
   .placeholder p{margin:10px 0 0}
+  /* ---------- Home links, Help, Feedback ---------- */ /*v3.0 - Phase 7*/
+  a.btn{text-decoration:none; display:inline-block}                  /* links styled as buttons */
+  .homelinks{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:18px}
+  .helpbody h2{font-size:calc(19px * var(--fs)); margin:30px 0 8px; scroll-margin-top:12px}
+  .helpbody h3{font-size:calc(15.5px * var(--fs)); margin:18px 0 4px}
+  .helpbody p, .helpbody li{color:var(--ink); font-size:calc(15px * var(--fs))}
+  .helpbody li{margin:4px 0}
+  .helpbody code{font-family:ui-monospace,Consolas,monospace; font-size:calc(13.5px * var(--fs)); background:var(--surface-2); border:1px solid var(--line); border-radius:5px; padding:0 4px}
+  .helpnav{display:flex; flex-wrap:wrap; gap:6px; margin-top:14px}
+  .helpnav button{border:1px solid var(--line); background:var(--surface-2); color:var(--ink); border-radius:999px; padding:5px 12px; font-size:calc(13px * var(--fs)); font-weight:600}
+  .helpnav button:hover{border-color:var(--accent); color:var(--accent)}
+  .helptable{width:100%; border-collapse:collapse; margin:10px 0; font-size:calc(14px * var(--fs))}
+  .helptable th, .helptable td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+  .helptable th{color:var(--muted); font-weight:650}
+  .note{border-left:4px solid var(--warn); background:var(--warn-soft); padding:10px 14px; border-radius:var(--radius-sm); margin:12px 0}
+  .note p{margin:0}
+  .step{border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 16px; margin:12px 0; background:var(--surface)}
+  .step h3{margin-top:0}
+  .step .num{display:inline-block; font-size:calc(12px * var(--fs)); font-weight:700; color:var(--on-accent); background:var(--accent); border-radius:6px; padding:1px 8px; margin-right:8px; vertical-align:1px}
+  .promptcard{border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px; margin:10px 0 4px; background:var(--surface-2)}
+  .promptcard .ptop{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .promptcard .pname{flex:1; min-width:160px; font-family:ui-monospace,Consolas,monospace; font-size:calc(13.5px * var(--fs)); font-weight:600}
+  .promptcard details{margin-top:8px}
+  .promptcard summary{cursor:pointer; color:var(--muted); font-size:calc(13px * var(--fs))}
+  .promptcard pre{white-space:pre-wrap; overflow-wrap:anywhere; font-size:calc(12.5px * var(--fs)); line-height:calc(1.45 * var(--lh)); background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:10px; max-height:320px; overflow:auto}
+  .versions dt{font-weight:700; margin-top:14px}
+  .versions dd{margin:4px 0 0 0; color:var(--ink)}
+  .fbframe{width:100%; height:1150px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface); margin-top:12px}
+  .envline{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; padding:10px 12px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm)}
+  .envline code{flex:1; min-width:200px; font-family:ui-monospace,Consolas,monospace; font-size:calc(13px * var(--fs))}
 
   /* ---------- Start ---------- */
   .hero{padding:34px 30px 30px}
@@ -377,9 +407,6 @@
   .applybar{position:sticky; bottom:12px; z-index:6; margin-top:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
     padding:14px 16px; background:var(--surface); border:1.5px solid var(--accent); border-radius:var(--radius); box-shadow:var(--shadow)}
   .applybar span{flex:1; min-width:200px; font-weight:600; font-size:calc(14.5px * var(--fs))}
-  .helpbody h2{font-size:calc(17px * var(--fs)); margin:22px 0 6px}
-  .helpbody p, .helpbody li{color:var(--ink); font-size:calc(15px * var(--fs))}
-  .helpbody code{font-family:ui-monospace,Consolas,monospace; font-size:calc(13.5px * var(--fs)); background:var(--surface-2); border:1px solid var(--line); border-radius:5px; padding:0 4px}
 </style>
 <script>
 //v3.0 - Lite: opened from a file, settings come from the baked qq-settings block; on the hosted site, from browser storage once applied
@@ -616,6 +643,8 @@ window.qqReadSettings = function(){
       </ul>
       <h2>Suggested setup</h2>
       <p>A folder named <code>Quiz Qrusher Lite</code> holding <code>quiz_qrusher_v3.0_lite.html</code>. Link that folder in Settings (Chrome/Edge) and saves go into a <code>saves</code> folder inside it. In iCloud Drive or OneDrive, set the folder to &ldquo;Always keep on this device&rdquo;.</p>
+      <h2>Feedback</h2>
+      <p>Found a bug or have an idea? Use the <a href="https://forms.gle/CYLHooZ76LtAvRGi8" target="_blank" rel="noopener">feedback form</a> (needs an internet connection). The full version's Help has the complete guide, including the AI prompts.</p>
     </div>
   </section>
 
