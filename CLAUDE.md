@@ -2,7 +2,7 @@
 
 Offline-capable quiz app: users generate multiple-choice question CSVs with an AI prompt pipeline, then load the CSV, take the quiz, and get a graded report. Built for classmates (currently med students; v3 makes it subject-agnostic). Hosted on GitHub Pages starting with v3.0.
 
-**Active work: v3.0. Read [docs/V3_PLAN.md](docs/V3_PLAN.md) first and tick off its checklist as phases finish.**
+**v3.0.0 released 2026-10-15** (tag `v3.0.0`). Remaining: the user's hands-on device checks in [docs/V3_PLAN.md](docs/V3_PLAN.md) §4 Phase 10. Ship fixes as v3.0.x, and log them in Help → What's new. Read the plan before changing anything.
 
 ## Layout
 - `index.html`, `lite.html`, `sw.js`, `manifest.webmanifest`, `icons/`: v3 site root

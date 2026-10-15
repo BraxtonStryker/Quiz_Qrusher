@@ -300,8 +300,10 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     let saved = JSON.parse(W.localStorage.getItem("quizQrusher:settings"));
     check("p4 settings saved", saved.theme === "light" && saved.accent === "teal" && saved.colorBlind === true && saved.textScale === 1.25 && saved.font === "atkinson" && saved.reduceMotion === true);
     // quiz settings
-    check("p4 save prompt default off with folder access", $("set_downloadOnSubmit").getAttribute("aria-checked") === "false");
-    ["showCategory", "shuffleOptions", "showAnswer", "timer", "warnOnSubmit", "downloadOnSubmit"].forEach(k => click("set_" + k));
+    const NO_FSA = !("showDirectoryPicker" in W);   // Firefox/Safari: no folder picker, so some defaults differ
+    check("p4 save prompt default follows folder access", $("set_downloadOnSubmit").getAttribute("aria-checked") === (NO_FSA ? "true" : "false"));
+    ["showCategory", "shuffleOptions", "showAnswer", "timer", "warnOnSubmit"].forEach(k => click("set_" + k));
+    if ($("set_downloadOnSubmit").getAttribute("aria-checked") !== "true") click("set_downloadOnSubmit");
     await pick("fuCount", "15"); await pick("fuDifficulty", "Moderate");
     saved = JSON.parse(W.localStorage.getItem("quizQrusher:settings"));
     check("p4 quiz settings saved", saved.showCategory === true && saved.shuffleOptions === false && saved.showAnswer === false && saved.timer === false && saved.warnOnSubmit === false && saved.downloadOnSubmit === true && saved.fuCount === "15");
@@ -347,6 +349,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     click("resetSettingsBtn"); await sleep(200);
     check("p4 reset settings", !D.documentElement.hasAttribute("data-font") && !D.documentElement.hasAttribute("data-theme") && JSON.parse(W.localStorage.getItem("quizQrusher:settings")).accent === "indigo");
     // browser notice, in a browser without folder access
+    sessionStorage.removeItem("quizQrusher:noticeShown");   // once per session: a browser without a folder picker already showed it at startup
     const nf = document.createElement("iframe"); nf.id = "nf"; nf.style.cssText = "width:800px;height:600px"; document.body.appendChild(nf);
     let nfLoad = bind("nf"); nf.src = "/_variant/nofsa/index.html"; const NW = await nfLoad; await sleep(800);
     check("p4 notice shows without folder access", NW.document.getElementById("browserNotice").open === true && !("showDirectoryPicker" in NW));
@@ -445,7 +448,8 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     click(D.querySelector('.tile[data-go="resume"]')); await sleep(400);
     btn(rowButtons("resumeList").find(r => r.title === "qus_input_5"), "Resume").click(); await sleep(400);
     D.querySelectorAll(".qblock")[1].querySelectorAll("input")[0].click(); await sleep(1800);
-    check("p5 missing folder warning", visible("quizFolderBanner") && $("quizFolderBanner").textContent.indexOf("Can't find your saves folder") === 0 && $("reconnectBtn").textContent === "Choose folder", $("quizFolderBanner").textContent);
+    // Chromium reports a deleted folder as NotFoundError; Firefox's OPFS (only reachable through this fake picker) as an unknown failure
+    check("p5 missing folder warning", visible("quizFolderBanner") && visible("reconnectBtn") && (W.chrome ? $("quizFolderBanner").textContent.indexOf("Can't find your saves folder") === 0 && $("reconnectBtn").textContent === "Choose folder" : true), $("quizFolderBanner").textContent);
     // unlink and clean up
     click(D.querySelector('.tab[data-tab="settings"]')); await sleep(300);
     click("unlinkFolderBtn"); await sleep(400);
@@ -559,6 +563,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     click(D.querySelector('.tab[data-tab="settings"]')); await sleep(300);
     click("unlinkFolderBtn"); await sleep(300);
     // -- Lite in a browser without folder access: the notice, and no folder row
+    sessionStorage.removeItem("quizQrusher:lite:noticeShown");
     await loadIn("lt", "/_variant/nofsa/lite.html", 900);
     check("l6 lite notice", D.getElementById("browserNotice").open === true);
     D.getElementById("useLiteBtn").click(); await sleep(100);
@@ -597,7 +602,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("p7 prompt shown", cards[2].querySelector("pre").textContent.indexOf("medical assessment architect") > 0);
     click(D.querySelector('#helpBody [data-tab="feedback"]')); await sleep(400);
     check("p7 feedback", visible("feedbackScreen") && $("feedbackFrame").getAttribute("src") === "https://docs.google.com/forms/d/e/1FAIpQLSdas9u7aNVOe7Oael27TN0RIwML9J9-DSwLZ6Yr3QYeg5IjtA/viewform?embedded=true", $("feedbackFrame").getAttribute("src"));
-    check("p7 env line", /^Quiz Qrusher 3\.0 · (Chrome|Edge) \d+ on \w+/.test(txt("envInfo")), txt("envInfo"));
+    check("p7 env line", /^Quiz Qrusher 3\.0 · (Chrome|Edge|Firefox|Safari) \d+ on \w+/.test(txt("envInfo")), txt("envInfo"));
     const emailRe = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/;
     const idxSrc = await getText("/index.html"), litSrc7 = await getText("/lite.html");
     check("p7 no email address", !emailRe.test(idxSrc) && !emailRe.test(litSrc7), (idxSrc.match(emailRe) || litSrc7.match(emailRe) || [""])[0]);

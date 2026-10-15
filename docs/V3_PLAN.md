@@ -338,11 +338,25 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
     - **Output:** four step cards (the same how-to text as Help), each with Copy, Download (`<subject>_<prompt>.md`) and Show. **Download all** builds `<subject>_prompts.zip` in the browser with a small stored-zip writer that works offline. The form is remembered in `quizQrusher:builder`; Reset restores the defaults.
     - Help's "Other subjects" paragraph now points to the builder, and the builder links back to Help → The AI workflow.
     - **Harness:** 216 checks. Phase 9 covers the medical and engineering outputs, every field × level combination leaving no `{{placeholder}}`, the board audience wording, persistence, Download, Copy, and the zip (also verified outside the browser with Python's `zipfile`: entries and CRCs). `logserver.py` accepts `POST /_upload`, saving it as `<out>.upload`.
-- [ ] **10. Release:**
+- [x] **10. Release:**
   - test in Chrome, Edge, Firefox and Safari (desktop + iPad if possible), both from the site and opened from disk
   - tag `v3.0.0`
   - update the "What's new" page
   - remove "preview build" from the Home footer
+  - Released 2026-10-15 as tag `v3.0.0`.
+    - **Automated tests** (headless, Windows):
+      - Chrome 216/216, Edge 216/216, Firefox 216/216; Chrome with IndexedDB removed 187/187
+      - the full app from `file://` in Chrome: start, answer, autosave, reload, Resume
+      - Lite from `file://` (Phase 6)
+      - The harness is now browser-aware: without a folder picker the save-file prompt defaults on and the notice shows at startup.
+    - **Release edits:** What's new has a dated v3.0 entry including the Prompt Builder and the installable app, the "preview build" label is gone, and there's a `README.md` for the public repo.
+  - [ ] **Hands-on checks (user, real devices).** Fix anything found as v3.0.x:
+    1. **Chrome or Edge, on the site:** link a real saves folder (try one in iCloud Drive too), answer a few questions, quit the browser, reopen, press **Reconnect folder**, answer one more, and check the `.json` file updated.
+    2. **Lite from disk (Chrome/Edge):** Home → Download for offline use → put the file in its own folder → open it → Settings → link that folder → change a setting → **Apply**. It should reload with the setting kept.
+    3. **Firefox:** the site and Lite from disk. Check the notice, autosave, and the save-file prompt on Submit. Then replace the Lite file with a newly downloaded copy: is the unfinished quiz still there? (That answers the open Firefox `file://` storage question from Phase 1.)
+    4. **Safari on a Mac and on an iPad:** the site works; Share → Add to Home Screen; open the installed app with no connection.
+    5. **Android Chrome (optional):** install the app and reopen it offline.
+    6. **Feedback:** send one test answer through the Feedback tab.
 
 ---
 
