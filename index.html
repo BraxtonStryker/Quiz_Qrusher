@@ -105,6 +105,10 @@
   .appbar-in{padding:0 20px; display:flex; align-items:center; gap:18px; flex-wrap:wrap}  /*v3.0 - spans the window: left group, right group*/
   .brand{background:none; border:none; color:var(--ink); font-size:calc(17px * var(--fs)); font-weight:750; letter-spacing:-.02em; padding:14px 0}
   .brand span{color:var(--accent)}
+  .brandgrp{display:flex; align-items:center; gap:2px}              /*v3.0.2 - back link + logotype*/
+  .homeback{display:inline-grid; place-items:center; width:24px; height:32px; margin-left:-8px; color:var(--muted); border-radius:6px; text-decoration:none}
+  .homeback:hover{color:var(--ink); background:var(--surface-2)}
+  .homeback svg{width:18px; height:18px}
   .tabs{display:flex; align-items:center; gap:2px; overflow-x:auto; scrollbar-width:none; flex:1; min-width:0}
   .tabs .push{flex:1; min-width:12px}                                 /*v3.0 - pushes Feedback, Help and Settings to the right edge*/
   .tab.icon{display:inline-grid; place-items:center; padding:12px 10px 10px}
@@ -113,7 +117,7 @@
   .tab{background:none; border:none; color:var(--muted); font-size:calc(14.5px * var(--fs)); font-weight:600; padding:15px 11px 13px; border-bottom:2px solid transparent; white-space:nowrap}
   .tab:hover{color:var(--ink)}
   .tab[aria-current="page"]{color:var(--accent); border-bottom-color:var(--accent)}
-  @media (max-width:560px){ .appbar-in{gap:0} .brand{padding:12px 0 0} .tabs{flex-basis:100%} .tab{padding:10px 10px 11px} }
+  @media (max-width:560px){ .appbar-in{gap:0} .brand{padding:12px 0 0} .homeback{margin-top:12px} .tabs{flex-basis:100%} .tab{padding:10px 10px 11px} }
 
   /* ---------- Home ---------- */ /*v3.0*/
   .tiles{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px}
@@ -468,7 +472,10 @@
 <!-- ====== APP BAR ====== --> <!--v3.0-->
 <header class="appbar">
   <div class="appbar-in">
-    <button class="brand" type="button" data-go="home">Quiz <span>Qrusher</span></button>
+    <div class="brandgrp"> <!--v3.0.2 - "<" back to the study apps homepage (hosted only; hidden from disk)-->
+      <a class="homeback hidden" id="homeBack" href="../" aria-label="All study apps" title="All study apps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <button class="brand" type="button" data-go="home">Quiz <span>Qrusher</span></button>
+    </div>
     <nav class="tabs" aria-label="Main">
       <button class="tab" type="button" data-tab="home" aria-current="page">Home</button>
       <button class="tab" type="button" data-tab="builder">Prompt Builder</button>
@@ -845,6 +852,8 @@
 
       <h2 id="help-whatsnew">What's new</h2>
       <dl class="versions">
+        <dt>v3.0.2 &middot; October 2026</dt>
+        <dd>A "&lsaquo;" next to the Quiz Qrusher name takes you back to the study apps homepage.</dd>
         <dt>v3.0.1 &middot; October 2026</dt>
         <dd>Strike out options you've ruled out, and in Test mode click a chosen option again to unselect it.</dd>
         <dt>v3.0 &middot; October 2026</dt>
@@ -929,7 +938,7 @@
 (function(){
   "use strict";
 
-  var APP_VERSION = "3.0.1";            //v3.0.1
+  var APP_VERSION = "3.0.2";            //v3.0.2
   var NS = "quizQrusher:";              //v3.0 - every GitHub Pages project of this user shares one origin, so namespace all keys
 
   var HAS_FSA = "showDirectoryPicker" in window; //v3.0 - feature check for the saves folder; never sniff the user agent for this
@@ -3285,6 +3294,7 @@
 
   /* ---------- Startup ---------- */ //v3.0
   el("appVersion").textContent = APP_VERSION;
+  if (/^https?:$/.test(location.protocol)) el("homeBack").classList.remove("hidden"); //v3.0.2 - the homepage only exists on the site
   maybeShowBrowserNotice(); //v3.0
   setupServiceWorker();     //v3.0 - Phase 8
   openStore().then(function(s){
