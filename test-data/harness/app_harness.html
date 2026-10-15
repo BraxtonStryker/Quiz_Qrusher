@@ -454,6 +454,126 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     [W, D] = mainWD;
     }
 
+    // ======== Phase 6: Lite ========
+    {
+    const mainWD6 = [W, D];
+    const loadIn = async (id, url, wait) => { let f = document.getElementById(id); if (!f) { f = document.createElement("iframe"); f.id = id; f.style.cssText = "width:1000px;height:700px"; document.body.appendChild(f); } const p = bind(id); f.src = url; const w = await p; await sleep(wait || 1200); W = w; D = w.document; return w; };
+    const liteSrc = await getText("/lite.html");
+    const OPEN6 = '<script id="qq-settings" type="application/json">';
+    const bakedOf = (text) => { const a = text.indexOf(OPEN6) + OPEN6.length; return JSON.parse(text.slice(a, text.indexOf("</" + "script>", a))); };
+    const opfsDir6 = async (create) => (await navigator.storage.getDirectory()).getDirectoryHandle("qq-test-saves", { create: !!create });
+    ["current", "settings", "hideBrowserNotice"].forEach(k => W.localStorage.removeItem("quizQrusher:lite:" + k));
+    // -- hosted (http): one quiz, autosave, continue, save files, settings kept in browser storage
+    await loadIn("lt", "/lite.html");
+    check("l6 lite home", visible("homeScreen") && !visible("continueCard") && !$("modeToggle") && !$("timerDisplay"));
+    const csv5 = await getText("../csv/qus_input_5.csv");
+    await setFile("fileInput", "qus_input_5.csv", csv5, "text/csv");
+    check("l6 csv ready", !$("startQuizBtn").disabled && txt("fileStatus").indexOf("CSV ready") === 0);
+    click("startQuizBtn"); await sleep(400);
+    check("l6 quiz", visible("quizScreen") && D.querySelectorAll(".qblock").length === 5 && visible("noteDock"));
+    D.querySelectorAll(".qblock")[0].querySelectorAll("input")[0].click();
+    D.querySelectorAll(".qblock")[1].querySelector(".qflagbtn").click();
+    $("noteText").value = "lite notes"; $("noteText").dispatchEvent(new W.Event("input", { bubbles: true })); await sleep(900);
+    let liteCur = JSON.parse(W.localStorage.getItem("quizQrusher:lite:current") || "null");
+    check("l6 autosave", liteCur && liteCur.format === "quiz-qrusher-save" && liteCur.attempt.answers.filter(a => a !== null).length === 1 && liteCur.attempt.notes === "lite notes" && liteCur.attempt.flags[1] === 1);
+    check("l6 status check only", $("saveStatus").querySelector(".ic").textContent === "✓" && W.getComputedStyle($("saveStatus").querySelector(".lbl")).display === "none");
+    const liteQ1 = D.querySelectorAll(".qblock")[0].querySelector(".qtext").textContent;
+    click(D.querySelector('.quizbar [data-go="home"]')); await sleep(300);
+    check("l6 continue card", visible("continueCard") && txt("continueTitle") === "Continue: qus_input_5" && txt("continueMeta").indexOf("1 of 5 answered · 1 flagged") === 0, txt("continueMeta"));
+    await loadIn("lt", "/lite.html?again");
+    check("l6 continue after reload", visible("continueCard"));
+    click("continueBtn"); await sleep(400);
+    check("l6 resumed", visible("quizScreen") && D.querySelectorAll(".qblock")[0].querySelector(".qtext").textContent === liteQ1 && txt("answeredCounter") === "1 of 5 answered  -  1 flagged" && $("noteText").value === "lite notes");
+    click("exportBtn"); await sleep(300);
+    const liteSave = captured[captured.length - 1], liteSaveText = await (await fetch(liteSave.href)).text();
+    check("l6 save file", /^qus_input_5_progress_\d{8}\.json$/.test(liteSave.name) && JSON.parse(liteSaveText).attempt.notes === "lite notes", liteSave.name);
+    let nConf6 = confirms.length;
+    click("submitBtn"); await sleep(500);
+    check("l6 submit", visible("resultsScreen") && confirms.length === nConf6 + 1 && /^\d of 5 correct$/.test(txt("scoreFrac")), txt("scoreFrac"));
+    click(D.querySelector('#resultsScreen [data-go="home"]')); await sleep(300);
+    check("l6 last quiz card", txt("continueTitle") === "Last quiz: qus_input_5" && txt("continueBtn") === "View results");
+    // open the progress save file again (current is submitted, so no replace prompt)
+    nConf6 = confirms.length;
+    await setFile("saveInput", liteSave.name, liteSaveText, "application/json"); await sleep(400);
+    check("l6 open save file", visible("quizScreen") && txt("answeredCounter") === "1 of 5 answered  -  1 flagged" && confirms.length === nConf6);
+    // v2 save: needs its CSV first; replacing an unfinished quiz asks first
+    click(D.querySelector('.quizbar [data-go="home"]')); await sleep(300);
+    const v2txt = await getText("../saves_v2/s25_few_answered_few_flagged.txt");
+    await setFile("saveInput", "v2save.txt", v2txt); await sleep(300);
+    check("l6 v2 needs csv", visible("startError") && txt("startError").indexOf("Load the CSV it was made from (question_input_09072616.csv)") > 0, txt("startError"));
+    await setFile("fileInput", "qus_input_25.csv", await getText("../csv/qus_input_25.csv"), "text/csv");
+    nConf6 = confirms.length;
+    await setFile("saveInput", "v2save.txt", v2txt); await sleep(400);
+    check("l6 v2 opens", visible("quizScreen") && D.querySelectorAll(".qblock").length === 25 && /^2 of 25 answered/.test(txt("answeredCounter")) && confirms.length === nConf6 + 1, txt("answeredCounter"));
+    click(D.querySelector('.quizbar [data-go="home"]')); await sleep(300);
+    await setFile("saveInput", "bundle.json", '{"format":"quiz-qrusher-backup","version":3,"banks":[],"attempts":[]}', "application/json"); await sleep(300);
+    check("l6 bundle explained", txt("startError").indexOf("Export all backup from the full app") > 0, txt("startError"));
+    // settings: preview, discard, apply (hosted -> browser storage)
+    click(D.querySelector('.tab[data-tab="settings"]')); await sleep(300);
+    check("l6 settings", D.querySelectorAll("#settingsBody .set-section").length === 6 && !visible("applyBar") && txt("settingsWhere").indexOf("in this browser") > 0);
+    click($("set_accent").querySelector('[data-val="rose"]')); await sleep(100);
+    check("l6 preview", W.getComputedStyle(D.documentElement).getPropertyValue("--accent").trim().length > 0 && visible("applyBar"));
+    click("discardSettingsBtn"); await sleep(100);
+    check("l6 discard", !visible("applyBar") && $("set_accent").querySelector('[data-val="indigo"]').getAttribute("aria-pressed") === "true");
+    click($("set_theme").querySelector('[data-val="dark"]')); await sleep(100);
+    click("applyBtn"); await sleep(300);
+    check("l6 apply hosted", JSON.parse(W.localStorage.getItem("quizQrusher:lite:settings")).theme === "dark" && !visible("applyBar") && visible("toast"));
+    await loadIn("lt", "/lite.html?third");
+    check("l6 hosted settings persist", D.documentElement.getAttribute("data-theme") === "dark");
+    W.localStorage.removeItem("quizQrusher:lite:settings");
+    // -- opened from a file (blob URL stands in for file://): baked settings, Apply downloads a rebuilt copy
+    const bakedLite = liteSrc.replace('{"v":1,"nonce":"repo","settings":{}}', JSON.stringify({ v: 1, nonce: "n_test", settings: { theme: "dark", accent: "teal" } }));
+    await loadIn("lt", URL.createObjectURL(new Blob([bakedLite], { type: "text/html" })));
+    check("l6 baked settings", D.documentElement.getAttribute("data-theme") === "dark" && W.getComputedStyle(D.documentElement).getPropertyValue("--accent").trim().toUpperCase() === "#2DD4BF");
+    click(D.querySelector('.tab[data-tab="settings"]')); await sleep(300);
+    check("l6 file mode wording", txt("settingsWhere").indexOf("inside this Lite file") > 0);
+    $("set_textScale").value = "1.25"; $("set_textScale").dispatchEvent(new W.Event("change")); await sleep(100);
+    click("applyBtn"); await sleep(400);
+    const rebuilt = captured[captured.length - 1], rebuiltText = await (await fetch(rebuilt.href)).text(), rb = bakedOf(rebuiltText);
+    check("l6 apply downloads", rebuilt.name === "quiz_qrusher_v3.0_lite.html" && rb.nonce === "n_test" && rb.settings.textScale === 1.25 && rb.settings.theme === "dark" && rb.settings.accent === "teal" && D.getElementById("applyDialog").open, rebuilt.name + " " + JSON.stringify(rb));
+    check("l6 rebuilt copy is clean", /^<!DOCTYPE html>\n<html lang="en"><head>/.test(rebuiltText) && rebuiltText.indexOf('id="continueCard"') > 0 && /class="card continue hidden" id="continueCard"/.test(rebuiltText), rebuiltText.slice(0, 80));
+    D.getElementById("applyDialogOk").click();
+    await loadIn("lt", URL.createObjectURL(new Blob([rebuiltText], { type: "text/html" })));
+    check("l6 rebuilt copy runs", visible("homeScreen") && W.getComputedStyle(D.documentElement).getPropertyValue("--fs").trim() === "1.25" && D.documentElement.getAttribute("data-theme") === "dark");
+    // -- in place: the linked folder holds this Lite file (fake picker -> OPFS)
+    try { await (await navigator.storage.getDirectory()).removeEntry("qq-test-saves", { recursive: true }); } catch (e) {}
+    const ldir = await opfsDir6(true);
+    let lfh = await ldir.getFileHandle("lite.html", { create: true }), lw = await lfh.createWritable(); await lw.write(liteSrc); await lw.close();
+    await loadIn("lt", "/_variant/fsatest/lite.html", 1500);
+    click(D.querySelector('.tab[data-tab="settings"]')); await sleep(300);
+    click("linkFolderBtn"); await sleep(1500);
+    check("l6 own folder found", D.getElementById("settingsBody").textContent.indexOf("It holds this Lite file") > 0, D.getElementById("settingsBody").textContent.slice(0, 300));
+    click(D.querySelector('.tab[data-tab="home"]')); await sleep(300);
+    click("continueBtn"); await sleep(400);
+    D.querySelectorAll(".qblock")[3].querySelectorAll("input")[0].click(); await sleep(1800);
+    let savesList = []; try { const sd = await ldir.getDirectoryHandle("saves"); for await (const h of sd.values()) savesList.push(h.name); } catch (e) {}
+    check("l6 saves subfolder", savesList.length === 1 && /\.json$/.test(savesList[0]) && $("saveStatus").getAttribute("aria-label").indexOf("Saved to folder") === 0, savesList.join(","));
+    click(D.querySelector('.tab[data-tab="settings"]')); await sleep(300);
+    click($("set_theme").querySelector('[data-val="light"]')); await sleep(100);
+    const reloadedLite = bind("lt");
+    click("applyBtn");
+    W = await reloadedLite; D = W.document; await sleep(1200);
+    const inPlace = bakedOf(await (await (await ldir.getFileHandle("lite.html")).getFile()).text());
+    check("l6 apply in place", inPlace.nonce === "repo" && inPlace.settings.theme === "light" && visible("homeScreen"), JSON.stringify(inPlace));
+    click(D.querySelector('.tab[data-tab="settings"]')); await sleep(300);
+    click("unlinkFolderBtn"); await sleep(300);
+    // -- Lite in a browser without folder access: the notice, and no folder row
+    await loadIn("lt", "/_variant/nofsa/lite.html", 900);
+    check("l6 lite notice", D.getElementById("browserNotice").open === true);
+    D.getElementById("useLiteBtn").click(); await sleep(100);
+    check("l6 use lite closes", D.getElementById("browserNotice").open === false);
+    document.getElementById("lt").remove();
+    ["current", "settings", "hideBrowserNotice"].forEach(k => localStorage.removeItem("quizQrusher:lite:" + k)); // same origin as the app
+    try { await (await navigator.storage.getDirectory()).removeEntry("qq-test-saves", { recursive: true }); } catch (e) {}
+    // -- full app: Download for offline use bakes the app's settings into Lite
+    [W, D] = mainWD6;
+    click(D.querySelector('.tab[data-tab="home"]')); await sleep(300);
+    click("downloadLiteBtn"); await sleep(800);
+    const dl = captured[captured.length - 1], dlb = bakedOf(await (await fetch(dl.href)).text());
+    check("l6 download for offline use", dl.name === "quiz_qrusher_v3.0_lite.html" && /^n_/.test(dlb.nonce) && dlb.settings.accent === "indigo" && "downloadInterval" in dlb.settings && !("analytics" in dlb.settings) && visible("toast"), dl.name + " " + JSON.stringify(dlb).slice(0, 200));
+    click("toastYes"); await sleep(100);
+    }
+
     // ---- tabs
     click(D.querySelector('.tab[data-tab="help"]')); await sleep(100);
     check("help tab", visible("helpScreen") && D.querySelector('.tab[data-tab="help"]').getAttribute("aria-current") === "page");

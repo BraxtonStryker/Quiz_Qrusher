@@ -384,7 +384,10 @@
   var mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
   var last = null;
 
-  function read(){ try { return JSON.parse(localStorage.getItem("quizQrusher:settings")) || {}; } catch (e){ return {}; } }
+  function read(){
+    if (window.qqReadSettings) return window.qqReadSettings() || {};   // Lite reads its baked settings block
+    try { return JSON.parse(localStorage.getItem("quizQrusher:settings")) || {}; } catch (e){ return {}; }
+  }
   function apply(s){
     s = s || read(); last = s;
     var root = document.documentElement, st = root.style;
@@ -457,7 +460,10 @@
         <span class="tt">Import previous quiz</span><span class="ts">A backup (.json), a v2 save (.txt), or a CSV</span>
       </button>
     </div>
-    <p class="homefoot muted">Quiz Qrusher v<span id="appVersion"></span> &middot; preview build</p>
+    <p class="homefoot muted">
+      <button class="linkbtn" id="downloadLiteBtn" type="button">Download for offline use</button> <!--v3.0 - Phase 6: Lite with your settings baked in-->
+      &middot; Quiz Qrusher v<span id="appVersion"></span> &middot; preview build
+    </p>
   </section>
 
   <!-- ====== START NEW ====== -->
@@ -898,6 +904,29 @@
     memoryLastSig[key] = sig;
     try { localStorage.setItem(storeKey, sig); } catch (e) {}
   }
+
+  /* === QQ-SHARED:baked-settings === */ //v3.0 - keep identical in lite.html
+  // Lite carries its settings in <script id="qq-settings" type="application/json"> inside its own source.
+  // These read and replace that block in a page's source text. The tag strings are split so this code never
+  // contains the real tag itself.
+  var BAKED_OPEN = '<scr' + 'ipt id="qq-settings" type="application/json">', BAKED_CLOSE = '</scr' + 'ipt>';
+  function bakedSpan(text){
+    var a = text.indexOf(BAKED_OPEN); if (a < 0) return null;
+    var st = a + BAKED_OPEN.length, b = text.indexOf(BAKED_CLOSE, st); if (b < 0) return null;
+    return { start: st, end: b };
+  }
+  function bakedFrom(text){
+    var sp = bakedSpan(text); if (!sp) return null;
+    try { return JSON.parse(text.slice(sp.start, sp.end)); } catch (e){ return null; }
+  }
+  function withBaked(text, obj){
+    var sp = bakedSpan(text);
+    if (!sp) throw new Error("The settings block wasn't found in the page source.");
+    return text.slice(0, sp.start) + JSON.stringify(obj).replace(/</g, "\\u003c") + text.slice(sp.end);
+  }
+  var LITE_KEYS = ["theme", "accent", "colorBlind", "reduceMotion", "textScale", "lineSpacing", "font", "shuffleQuestions", "shuffleOptions",
+                   "showCategory", "warnOnSubmit", "focusCutoff", "fuDifficulty", "fuCount", "downloadOnSubmit", "downloadInterval"];
+  /* === /QQ-SHARED === */
 
   /* === QQ-SHARED:save-format === */ //v3.0 - keep identical in lite.html
   // One self-contained JSON file per attempt; the CSV travels inside it. See docs/V3_PLAN.md "Save format".
@@ -1860,6 +1889,24 @@
     setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
   }
 
+  /* ---------- Download for offline use (Lite) ---------- */ //v3.0 - Phase 6
+  var LITE_FILE = "quiz_qrusher_v3.0_lite.html";
+  // Fetches the hosted lite.html, bakes in this browser's settings, and downloads it. Needs http(s): file:// can't fetch.
+  function downloadLite(){
+    var picked = {};
+    LITE_KEYS.forEach(function(k){ if (k in settings) picked[k] = settings[k]; });
+    return fetch("lite.html", { cache: "no-store" }).then(function(r){
+      if (!r.ok) throw new Error("lite.html answered " + r.status);
+      return r.text();
+    }).then(function(text){
+      download(withBaked(text, { v: 1, nonce: uid("n"), madeAt: Date.now(), app: APP_VERSION, settings: picked }), LITE_FILE, "text/html");
+      showToast("Downloaded " + LITE_FILE + ". Put it in its own folder, for example \u201CQuiz Qrusher Lite\u201D, and open it from there.", "OK", null);
+      return LITE_FILE;
+    }).catch(function(){
+      showToast("Couldn't build the offline copy here. Open the hosted site to download it, or use lite.html from the same folder.", "OK", null);
+    });
+  }
+
   /* ---------- Export backup (v3 .json) ---------- */ //v3.0
   function backupName(bank, attempt){ return safeFile(bank.name) + "_" + (attempt.status === "submitted" ? "results" : "progress") + "_" + mmddyyhh() + ".json"; }
   function exportAttempt(bank, attempt){
@@ -2561,6 +2608,7 @@
   var toastAction = null, lastPromptAt = Date.now();
   function showToast(msg, yesLabel, onYes){
     el("toastMsg").textContent = msg; el("toastYes").textContent = yesLabel; toastAction = onYes;
+    el("toastNo").classList.toggle("hidden", !onYes); // information only: just OK
     el("toast").classList.remove("hidden");
   }
   function hideToast(){ el("toast").classList.add("hidden"); toastAction = null; }
@@ -2655,6 +2703,7 @@
   el("toastYes").addEventListener("click", function(){ var f = toastAction; hideToast(); if (f) f(); });
   el("toastNo").addEventListener("click", hideToast);
   el("useFullBtn").addEventListener("click", closeBrowserNotice);
+  el("downloadLiteBtn").addEventListener("click", downloadLite); //v3.0 - Phase 6
   // saves folder: the quiz-bar button and both banners run the fix for the current problem //v3.0 - Phase 5
   var runFolderFix = function(){ folderAction().run(); };   // must stay inside the click: permission prompts need it
   el("reconnectBtn").addEventListener("click", runFolderFix);

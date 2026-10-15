@@ -282,11 +282,26 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
     - **Two tabs:** opening a quiz broadcasts a claim on BroadcastChannel `quizQrusher:tabs`. The other tab saves, replies with its `updatedAt` (the newer copy is reloaded in the claiming tab), and shows a modal "Open in another tab" with **Use it here** / **Go to Home**. A paused tab never writes. Escape can't dismiss the modal.
     - **Settings → Saving → Saves folder:** Link a folder / Change folder / Unlink, plus the fix button when there's a problem. The description recommends a dedicated folder set to "Always keep on this device" in iCloud/OneDrive. Clear all data also unlinks (the files stay).
     - **Harness:** 149 checks. The `fsatest` variant in `logserver.py` makes the picker return a real OPFS directory and fakes `prompt`/`granted` via `qqtest:*` localStorage keys. That covers linking, write-through, reconcile both ways, `.crswap`, Reconnect (including a dismissed prompt), tombstones, a missing folder and two tabs. Real-folder checks on Chrome/Edge are still part of Phase 10.
-- [ ] **6. Lite:**
+- [x] **6. Lite:**
   - `lite.html` from v2.3.3 + shared blocks
   - baked settings + Apply regeneration
   - "Download for offline use" from the full app
   - prompt-to-download setting
+  - [x] Done 2026-10-14 (`lite.html`). Notes:
+    - **Shared code:** the CSS and the `QQ-SHARED` blocks (appearance, csv, baked-settings, save-format) are copied verbatim from `index.html`. `python -I test-data/harness/check_shared.py` verifies they match, and `--sync` copies them from `index.html`, the source of truth. Run it after touching any shared block.
+    - **Contents:** Home has a "Continue / Last quiz" card for the one quiz Lite keeps, the CSV drop, and a save-file drop (v3 `.json`; v2 `.txt` once its CSV is loaded; an Export-all bundle gets a pointer to the full app). Plus Quiz, Results (retake reshuffled), Help (short guide) and Settings, with an app bar of Home, then Full version · Help · ⚙ on the right.
+    - **Left out:** library, Tutor mode, timer, trends, partial retakes, two-tab handling, analytics and PWA. Saves from the full app still open correctly: revealed questions show locked and scored the same way, and `elapsedMs`/`mode` are kept.
+    - **Storage:** `quizQrusher:lite:current` (localStorage, one v3 save object), `:lite:settings` (hosted only), `:lite:hideBrowserNotice`, `:lite:lastorder:*`. The folder handle is in IndexedDB `quizQrusher:lite:kv`. None of it touches the full app's keys.
+    - **Settings source:** `window.qqReadSettings` (defined before the shared appearance block, which now calls it if present). Opened from a file (anything not http(s)), it reads the baked `qq-settings` block `{v, nonce, madeAt, app, settings}`. On the hosted site it reads `quizQrusher:lite:settings`, falling back to the baked block.
+    - **Apply:** changes preview live, and an apply bar plus a Home banner show while there are unapplied changes. A `beforeunload` warning catches leaving with them. Apply then:
+      1. if the linked folder holds this file (name + nonce match), rewrites it in place and reloads;
+      2. else, on the hosted site, saves to browser storage;
+      3. else downloads `quiz_qrusher_v3.0_lite.html` rebuilt from the startup snapshot, with the agreed "delete the old file… press Reconnect" dialog and the "(1)" warning.
+    - **Snapshot:** taken as the first statement of the last script. Its `<html>` tag is reset to `<html lang="en">` so the theme attributes the head script added are never baked in.
+    - **Saves folder:** linking the folder that holds Lite also makes Apply work in place, and quiz files then go to `<folder>/saves/`. Any other folder gets them at its root. On getting permission, a newer folder copy of the current quiz is taken.
+    - **Download for offline use** (full app, Home footer): fetches `lite.html`, bakes in the `LITE_KEYS` subset of the current settings plus a fresh nonce, downloads it, and shows a toast suggesting a dedicated "Quiz Qrusher Lite" folder. It needs http(s); from `file://` it says so.
+    - **Harness:** 180 checks. The Lite ones cover the hosted flow, baked settings from a file (blob URL stand-in), a rebuilt copy that loads and runs, in-place Apply through the OPFS fake folder, the browser notice, and Download for offline use.
+    - **Still to test by hand (Phase 10):** a real `file://` Apply in Chrome/Edge (link Lite's folder, change a setting, Apply → reload), and Firefox `file://` storage sharing between an old and a replaced Lite file.
 - [ ] **7. Content tabs:**
   - Help (+ What's new, Privacy)
   - Feedback (Form iframe; placeholder until the link arrives)
