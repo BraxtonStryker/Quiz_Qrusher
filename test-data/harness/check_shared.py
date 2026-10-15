@@ -32,17 +32,36 @@ PROMPTS_BLOCK = re.compile(r"(?s)/\* === PROMPTS:medical === \*/\n.*?\n(\s*)/\* 
 ZIP_PATH = PROMPT_DIR + "/medical_prompts.zip"
 
 
-def prompt_texts():
+TEMPLATE_DIR = "prompts/templates"
+TEMPLATE_ORDER = ["slide_miner.md", "data_sanitizer.md", "style_researcher.md", "que_generator.md"]
+TEMPLATES_BLOCK = re.compile(r"(?s)/\* === PROMPTS:templates === \*/\n.*?\n(\s*)/\* === /PROMPTS === \*/")
+
+
+def prompt_texts(folder=PROMPT_DIR, order=PROMPT_ORDER):
     import os
-    names = PROMPT_ORDER + sorted(n for n in os.listdir(PROMPT_DIR) if n.endswith(".md") and n not in PROMPT_ORDER)
-    return [(n, open(PROMPT_DIR + "/" + n, encoding="utf-8").read().replace("\r\n", "\n")) for n in names]
+    names = order + sorted(n for n in os.listdir(folder) if n.endswith(".md") and n not in order)
+    return [(n, open(folder + "/" + n, encoding="utf-8").read().replace("\r\n", "\n")) for n in names]
 
 
-def prompts_js(texts):
+def prompts_js(texts, block="medical", var="PROMPTS", folder=PROMPT_DIR):
     import json
     body = json.dumps(dict(texts), ensure_ascii=False, indent=2).replace("</", "<\\/").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
     body = body.replace("\n", "\n  ")
-    return "/* === PROMPTS:medical === */\n  var PROMPTS = " + body + "; // generated from prompts/medical by test-data/harness/check_shared.py --sync\n  /* === /PROMPTS === */"
+    return ("/* === PROMPTS:" + block + " === */\n  var " + var + " = " + body + "; // generated from " + folder +
+            " by test-data/harness/check_shared.py --sync\n  /* === /PROMPTS === */")
+
+
+def templates_step(index, sync):
+    """Prompt Builder templates: prompts/templates/*.md -> index.html's PROMPTS:templates block."""
+    want = prompts_js(prompt_texts(TEMPLATE_DIR, TEMPLATE_ORDER), "templates", "PROMPT_TEMPLATES", TEMPLATE_DIR)
+    m = TEMPLATES_BLOCK.search(index)
+    if not m:
+        return index, ["index.html has no PROMPTS:templates block"]
+    if sync:
+        index = index[:m.start()] + want + index[m.end():]
+        open("index.html", "w", encoding="utf-8", newline="").write(index)
+        return index, []
+    return index, ([] if m.group(0) == want else ["index.html PROMPTS:templates block is out of date with " + TEMPLATE_DIR])
 
 
 def build_zip(texts):
@@ -82,6 +101,8 @@ def prompts_step(index, sync):
 def main():
     index = open("index.html", encoding="utf-8").read()
     index, prompt_problems = prompts_step(index, "--sync" in sys.argv)
+    index, template_problems = templates_step(index, "--sync" in sys.argv)
+    prompt_problems += template_problems
     for pr in prompt_problems:
         print(pr)
     lite = open("lite.html", encoding="utf-8").read()

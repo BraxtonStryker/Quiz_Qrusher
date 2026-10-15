@@ -65,7 +65,10 @@ class H(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(n)
-        open(OUT, "wb").write(body)
+        if self.path.split("?")[0] == "/_upload":         # a file the harness wants checked outside the browser
+            open(OUT + ".upload", "wb").write(body)
+        else:
+            open(OUT, "wb").write(body)
         self.send_response(204)
         self.end_headers()
 

@@ -324,7 +324,20 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
     - **Help → Saving:** a new "Install it as an app" section covering Chrome/Edge, Safari Add to Home Screen (and why that helps with Safari's storage limit), and the update toast.
     - **Harness:** 201 checks. Phase 8 covers the manifest, icon sizes, head tags, the active worker and its precache, Lite staying worker-free, and the full update path (the test server's `/_swbump` changes `sw.js`): offer → survives a screen change → Reload → new worker in control. Headless Chrome needs a **short profile path** on Windows, or Cache Storage fails with "Unexpected internal error".
     - **For Phase 10:** test installing on a real phone/tablet (iPad Safari Add to Home Screen, Android Chrome install) and an offline reload of the installed app.
-- [ ] **9. Prompt Builder** (generic subject templates).
+- [x] **9. Prompt Builder** (generic subject templates).
+  - Done 2026-10-15. Notes:
+    - **Templates:** `prompts/templates/{slide_miner,data_sanitizer,style_researcher,que_generator}.md` are the medical prompts generalized, with `{{PLACEHOLDERS}}`. They're embedded in `index.html` (`PROMPTS:templates`) by `check_shared.py --sync`, and the check fails if they're stale.
+    - **Form:**
+      - subject or course
+      - **field** (an addition, so the wording fits the subject): medicine, natural sciences, engineering, math/stats, computing, humanities/social sciences, business/economics, law, other
+      - level: high school/AP, undergraduate, graduate, professional school, board/licensing prep
+      - exam style (free text with suggestions such as USMLE Step 1, FE Exam, AP, Bar Exam (MBE))
+      - difficulty: introductory 35-45/45-55/5-10%, moderate 20-30/50-60/15-25%, challenging 10-15/50-60/25-35% (the medical set's mix), very challenging 0-10/35-45/50-60%
+      - question count: "as many as the material supports (20+)" or 10–50
+    - Each field supplies the vocabulary: what to extract, what to link, scenario types, reasoning chains, hard-question chains, and distractor types. With Medicine + Professional + USMLE Step 1 + Challenging, the output matches the medical set's substance. An empty subject shows "[your course]".
+    - **Output:** four step cards (the same how-to text as Help), each with Copy, Download (`<subject>_<prompt>.md`) and Show. **Download all** builds `<subject>_prompts.zip` in the browser with a small stored-zip writer that works offline. The form is remembered in `quizQrusher:builder`; Reset restores the defaults.
+    - Help's "Other subjects" paragraph now points to the builder, and the builder links back to Help → The AI workflow.
+    - **Harness:** 216 checks. Phase 9 covers the medical and engineering outputs, every field × level combination leaving no `{{placeholder}}`, the board audience wording, persistence, Download, Copy, and the zip (also verified outside the browser with Python's `zipfile`: entries and CRCs). `logserver.py` accepts `POST /_upload`, saving it as `<out>.upload`.
 - [ ] **10. Release:**
   - test in Chrome, Edge, Firefox and Safari (desktop + iPad if possible), both from the site and opened from disk
   - tag `v3.0.0`

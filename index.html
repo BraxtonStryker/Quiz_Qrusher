@@ -171,6 +171,10 @@
   .promptcard details{margin-top:8px}
   .promptcard summary{cursor:pointer; color:var(--muted); font-size:calc(13px * var(--fs))}
   .promptcard pre{white-space:pre-wrap; overflow-wrap:anywhere; font-size:calc(12.5px * var(--fs)); line-height:calc(1.45 * var(--lh)); background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:10px; max-height:320px; overflow:auto}
+  .pb-form{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-top:6px}  /*v3.0 - Phase 9*/
+  .pb-form .wide{grid-column:1 / -1}
+  .pb-form .fu-field input, .pb-form .fu-field select{width:100%; min-width:0}   /* beats .fu-field input{width:120px} */
+  .pb-steps .step{background:var(--surface)}
   .versions dt{font-weight:700; margin-top:14px}
   .versions dd{margin:4px 0 0 0; color:var(--ink)}
   .fbframe{width:100%; height:1150px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface); margin-top:12px}
@@ -691,11 +695,32 @@
   </section>
 
   <!-- ====== OTHER TABS (filled in by later phases) ====== --> <!--v3.0-->
-  <section id="builderScreen" class="hidden">
-    <div class="card hero placeholder">
+  <section id="builderScreen" class="hidden"> <!--v3.0 - Phase 9: the four pipeline prompts for any subject-->
+    <div class="card hero">
       <h1>Prompt Builder</h1>
-      <p class="muted">Coming in a later update: build the AI prompts that turn your lecture slides into a question CSV, for any subject.</p>
+      <p class="lede">Describe your course and get the four AI prompts that turn lecture slides into a question CSV. How to use them: <button class="linkbtn" type="button" data-helpjump="help-ai">Help, The AI workflow</button>.</p>
+      <div class="pb-form">
+        <label class="fu-field wide"><span>Subject or course</span>
+          <input id="pbSubject" type="text" maxlength="120" placeholder="e.g. Organic Chemistry II, Cardiology block, Statics" autocomplete="off"></label>
+        <label class="fu-field"><span>Field</span><select id="pbField"></select></label>
+        <label class="fu-field"><span>Level</span><select id="pbLevel"></select></label>
+        <label class="fu-field wide"><span>Exam style (optional)</span>
+          <input id="pbExam" type="text" maxlength="80" list="pbExamList" placeholder="e.g. USMLE Step 1, FE Exam, AP Biology, Bar Exam (MBE)" autocomplete="off">
+          <datalist id="pbExamList">
+            <option value="USMLE Step 1"></option><option value="USMLE Step 2 CK"></option><option value="COMLEX Level 1"></option>
+            <option value="NCLEX-RN"></option><option value="MCAT"></option><option value="NAPLEX"></option><option value="FE Exam"></option>
+            <option value="PE Exam"></option><option value="AP Biology"></option><option value="AP Chemistry"></option>
+            <option value="AP Calculus"></option><option value="Bar Exam (MBE)"></option><option value="CPA Exam"></option><option value="GRE Subject Test"></option>
+          </datalist></label>
+        <label class="fu-field"><span>Difficulty</span><select id="pbDifficulty"></select></label>
+        <label class="fu-field"><span>Number of questions</span><select id="pbCount"></select></label>
+      </div>
+      <div class="results-actions">
+        <button class="btn" id="pbZipBtn" type="button">Download all (.zip)</button>
+        <button class="btn ghost" id="pbResetBtn" type="button">Reset</button>
+      </div>
     </div>
+    <div class="card hero helpbody pb-steps" style="margin-top:16px" id="pbOutput"></div>
   </section>
   <section id="helpScreen" class="hidden">
     <div class="backbar hidden" id="helpBackBar"><button class="linkbtn back" id="helpBackBtn" type="button">&larr; Back to quiz</button></div> <!--v3.0-->
@@ -762,7 +787,7 @@
       <div class="step"><h3><span class="num">Step 5</span>Review and follow up</h3>
         <ul><li>After you submit, download the <strong>Follow-up request</strong> and paste it, with your report and <code>slide_data.md</code>, into Claude for a new set aimed at your misses. Ask it to raise the difficulty if the questions felt easy.</li></ul>
       </div>
-      <p>Other subjects: the prompts are written for medical school, but the workflow is the same anywhere. Edit the role and audience lines (for example "first-year medical student") to fit your course. A Prompt Builder for any subject is coming.</p>
+      <p>Other subjects: the prompts above are written for medical school, but the workflow is the same anywhere. Use the <button class="linkbtn" type="button" data-tab="builder">Prompt Builder</button> to make the four prompts for your own course, level and exam.</p>
 
       <h2 id="help-quiz">Taking a quiz</h2>
       <ul>
@@ -1437,6 +1462,7 @@
     if (toastKind !== "update") hideToast();                          //v3.0 - an update offer stays up until answered
     if (id === "settingsScreen") renderSettings();                    //v3.0
     if (id === "helpScreen") renderPrompts();                         //v3.0 - Phase 7
+    if (id === "builderScreen") renderBuilder();                      //v3.0 - Phase 9
     if (id === "feedbackScreen") openFeedback();                      //v3.0 - Phase 7
     SCREENS.forEach(function(s){ el(s).classList.toggle("hidden", s !== id); });
     var tab = TAB_OF[id] || "home";
@@ -2809,28 +2835,256 @@
     document.body.removeChild(t);
   }
   function flash(btn, label){ var old = btn.textContent; btn.textContent = label; setTimeout(function(){ btn.textContent = old; }, 1500); }
+  // A prompt card: name, Copy, Download, and a collapsible view. getText/getFile are read at click time. //v3.0 - shared with the Prompt Builder
+  function makePromptCard(name, getText, getFile){
+    var card = document.createElement("div"); card.className = "promptcard";
+    var top = document.createElement("div"); top.className = "ptop";
+    var nm = document.createElement("span"); nm.className = "pname"; nm.textContent = name; top.appendChild(nm);
+    var copy = document.createElement("button"); copy.type = "button"; copy.className = "btn sm"; copy.textContent = "Copy";
+    copy.setAttribute("aria-label", "Copy " + name);
+    copy.addEventListener("click", function(){ copyText(getText()).then(function(){ flash(copy, "Copied"); }); });
+    var dl = document.createElement("button"); dl.type = "button"; dl.className = "btn sm subtle"; dl.textContent = "Download";
+    dl.setAttribute("aria-label", "Download " + name);
+    dl.addEventListener("click", function(){ download(getText(), getFile ? getFile() : name, "text/markdown"); });
+    top.appendChild(copy); top.appendChild(dl);
+    var det = document.createElement("details"), sum = document.createElement("summary"), pre = document.createElement("pre");
+    sum.textContent = "Show the prompt"; pre.textContent = getText();
+    det.appendChild(sum); det.appendChild(pre);
+    card.appendChild(top); card.appendChild(det);
+    return { card: card, pre: pre };
+  }
   function renderPrompts(){
     Array.prototype.forEach.call(document.querySelectorAll(".promptslot"), function(slot){
       if (slot.childNodes.length) return;
       var name = slot.getAttribute("data-prompt"), text = PROMPTS[name];
       if (!text) return;
-      var card = document.createElement("div"); card.className = "promptcard";
-      var top = document.createElement("div"); top.className = "ptop";
-      var nm = document.createElement("span"); nm.className = "pname"; nm.textContent = name; top.appendChild(nm);
-      var copy = document.createElement("button"); copy.type = "button"; copy.className = "btn sm"; copy.textContent = "Copy";
-      copy.setAttribute("aria-label", "Copy " + name);
-      copy.addEventListener("click", function(){ copyText(text).then(function(){ flash(copy, "Copied"); }); });
-      var dl = document.createElement("button"); dl.type = "button"; dl.className = "btn sm subtle"; dl.textContent = "Download";
-      dl.setAttribute("aria-label", "Download " + name);
-      dl.addEventListener("click", function(){ download(text, name, "text/markdown"); });
-      top.appendChild(copy); top.appendChild(dl);
-      var det = document.createElement("details"), sum = document.createElement("summary"), pre = document.createElement("pre");
-      sum.textContent = "Show the prompt"; pre.textContent = text;
-      det.appendChild(sum); det.appendChild(pre);
-      card.appendChild(top); card.appendChild(det);
-      slot.appendChild(card);
+      slot.appendChild(makePromptCard(name, function(){ return text; }).card);
     });
   }
+  /* ---------- Prompt Builder ---------- */ //v3.0 - Phase 9
+  /* === PROMPTS:templates === */
+  var PROMPT_TEMPLATES = {
+    "slide_miner.md": "# slide_miner.md ({{SUBJECT}})\n\n**Role:** You are an expert data-extraction AI specializing in {{SUBJECT}} course material at the {{LEVEL}} level.\n\n**Task:** Parse the provided lecture slides and any transcripts or notes, then extract and structure their content for a downstream AI that will write practice questions. Your focus is strictly on extracting and organizing the material, not on writing the questions yourself.\n\n**Instructions:**\n1. **Identify Learning Objectives:** Extract any formal learning objectives, competencies, or study questions that state what the student is expected to understand or be able to do.\n2. **Concept Extraction:** Create a structured list of the major testable concepts.\n    * Extract the key {{CONCEPTS}}.\n    * Identify bolded, highlighted, or underlined slide material, and concepts the lecturer repeats or emphasizes in the transcript.\n    * Extract the data in major figures, diagrams, and tables.\n3. **Data Formatting:** Structure the extracted data hierarchically. Group related {{RELATIONS}} under their learning objectives, so the downstream model can follow cause-and-effect and step-by-step chains.\n4. **Constraints:** Do not omit complex material, but reduce it to easy-to-read bullet points. Use only what is in the provided materials.\n\n**Output Requirement:** Output the finalized, structured data as a markdown file named exactly `slide_data.md`. Wrap the entire output in a single markdown code block.\n",
+    "data_sanitizer.md": "# data_sanitizer.md ({{SUBJECT}})\n\n**Role:** You are an expert {{SUBJECT}} curriculum editor and data synthesizer.\n\n**Task:** You will receive three inputs: `slide_data.md` (the raw extracted concepts), the lecture transcripts or notes, and the official learning objectives. Your goal is to filter, refine, and clean this data so that only highly testable, objective-driven material remains, formatted for downstream question generation.\n\n**Instructions:**\n1. **Objective Alignment:** Cross-reference every concept in `slide_data.md` with the learning objectives. If a concept does not directly support or relate to a learning objective, remove it.\n2. **Transcript Integration:** Read the transcripts to identify what the lecturer emphasized. Make sure any {{EMPHASIS}} from the transcripts are explicitly added to their related concepts.\n3. **Reasoning Focus:** {{EXAM_STYLE}} questions require multi-step reasoning. For every {{ITEM}} listed, make sure its {{LINKS}} are clearly linked. Do not leave isolated facts; connect them logically.\n4. **Formatting:** Structure the output hierarchically. Group the cleaned data under its specific learning objectives. Under each objective, use bullet points to detail the critical concepts, {{BULLETS}}.\n\n**Output Requirement:** Output the finalized, filtered data as a markdown file named exactly `slide_data(cleaned).md`. Wrap the entire output in a single markdown code block.\n",
+    "style_researcher.md": "## style_researcher.md ({{SUBJECT}})\n\nRole:\nYou are an assessment architect for {{SUBJECT}}. Your purpose is NOT to write questions. Your purpose is to create a complete exam blueprint that another AI can immediately execute.\n\nTask:\nReview the requested topics and generate a file named question_styling.md that contains all stylistic, difficulty, reasoning, and scope requirements for question generation.\n\nGoals:\n1. Eliminate ambiguity for the downstream question generator.\n2. Pre-decide difficulty calibration.\n3. Pre-decide question scope.\n4. Pre-decide reasoning complexity.\n5. Reduce generator inference work and maximize generation speed.\n\nBefore generating the blueprint:\n- Ask the user for the topics in their current unit.\n- Ask for any instructor-specific instructions or high-yield areas.\n\nCalibration Rules:\n\nAudience:\n- {{AUDIENCE}}.\n- Exam style: {{EXAM_STYLE}}.\n\nKnowledge Scope:\n- Only test concepts explicitly found in the uploaded course materials.\n- No outside {{OUTSIDE}} unless directly included in the source content.\n\nDifficulty Framework ({{DIFFICULTY}} overall):\n\nEasy ({{EASY}})\n- One-step application.\n- No pure recall.\n- Requires interpretation rather than memorization.\n\nModerate ({{MODERATE}})\n- Two-step reasoning.\n- Identify concept → apply principle.\n- Principle → predict outcome.\n\nHard ({{HARD}})\n- Multi-step reasoning chains.\n{{HARD_CHAINS}}\n- Compare similar concepts and identify distinguishing features.\n\nQuestion Requirements:\n- No standalone fact-recall questions.\n- No definition questions.\n- No terminology identification questions.\n\nEvery question must require:\n1. Interpretation\n2. Reasoning\n3. Application\n\nPreferred reasoning chains:\n{{CHAINS}}\n\nScenario Rules:\n- Use {{SCENARIOS}} whenever appropriate.\n- Keep scenario details relevant to the tested concept.\n\nDistractor Rules:\n- Distractors must be plausible.\n- Distractors should represent {{DISTRACTORS}}.\n- Avoid obviously incorrect answers.\n\nLevel Scope Protection:\n- Do not artificially force complexity beyond {{LEVEL}} course coverage.\n- Complexity should arise from reasoning depth, not obscure facts.\n\nOutput Requirements:\nGenerate a file called question_styling.md containing:\n1. Audience description\n2. Allowed content scope\n3. Difficulty distribution\n4. Reasoning requirements\n5. Scenario requirements\n6. Distractor construction rules\n7. Prohibited question types\n8. Concept coverage priorities\n9. Any instructor-specific directives\n\nThe output should function as a complete blueprint that allows a question generator to immediately write questions without independently deciding style, difficulty, or scope.\n",
+    "que_generator.md": "## que_generator.md ({{SUBJECT}})\n\nRole:\nYou are an expert {{EXAM_STYLE}} question writer for {{SUBJECT}}.\n\nTask:\nYou will receive:\n1. slide_data.md (or slide_data(cleaned).md)\n2. question_styling.md\n\nYour job is to generate questions by EXECUTING the blueprint in question_styling.md.\n\nCore Principle:\n- Do not independently determine difficulty, scope, reasoning depth, scenario style, or distractor construction.\n- Follow the blueprint exactly.\n- Treat question_styling.md as the authoritative exam specification.\n\nRequirements:\n- Use only information from the course material.\n- Create exactly six answer choices.\n- Maintain a single best answer.\n- Randomize the position of the correct answer.\n- Generate {{COUNT}}.\n\nQuestion Construction Workflow:\n1. Identify concepts from the course content.\n2. Match concepts to the blueprint difficulty distribution.\n3. Apply the blueprint reasoning requirements.\n4. Apply the blueprint scenario requirements.\n5. Apply the blueprint distractor requirements.\n6. Generate the final questions.\n\nOutput Format:\nA CSV file with exactly this header row:\nCategory,Question_Text,Option_1,Option_2,Option_3,Option_4,Option_5,Option_6,Correct_Option_Number\n- Category: a short topic name; results are grouped by it.\n- Correct_Option_Number: the number (1-6) of the correct option.\n- Put double quotes around any field that contains a comma.\n\nFile name:\nquestion_input_[MMDDYYHH].csv\n"
+  }; // generated from prompts/templates by test-data/harness/check_shared.py --sync
+  /* === /PROMPTS === */
+  // Field vocabularies fill the templates' {{placeholders}}, so the medical wording (diseases, clinical vignettes...)
+  // becomes the right language for each kind of course.
+  var PB_FIELDS = {
+    medicine: { name: "Medicine and health sciences",
+      CONCEPTS: "diseases, pathways, mechanisms, drugs, and treatments", RELATIONS: "pathways, clinical manifestations, and biochemical consequences",
+      EMPHASIS: "clinical correlations, step-by-step mechanisms, or repeatedly emphasized points", ITEM: "disease or drug",
+      LINKS: "underlying mechanism, clinical presentation, and downstream consequences", BULLETS: "mechanisms, and clinical presentations",
+      OUTSIDE: "diseases, pathways, drugs, or mechanisms",
+      SCENARIOS: "clinical vignettes when clinically appropriate; otherwise laboratory, molecular, physiology, histology, or experimental scenarios",
+      chains: ["Symptom \u2192 mechanism", "Mechanism \u2192 consequence", "Structure \u2192 function \u2192 pathology", "Experiment \u2192 observation \u2192 conclusion", "Perturbation \u2192 pathway change \u2192 outcome"],
+      hard: ["Clinical finding \u2192 mechanism \u2192 prediction.", "Experimental finding \u2192 pathway \u2192 consequence."],
+      DISTRACTORS: "nearby concepts, competing mechanisms, related pathways, or commonly confused structures" },
+    science: { name: "Natural sciences (biology, chemistry, physics)",
+      CONCEPTS: "principles, processes, mechanisms, laws, equations, and experimental methods", RELATIONS: "processes, mechanisms, and their outcomes",
+      EMPHASIS: "step-by-step mechanisms, worked examples, experiments, or repeatedly emphasized points", ITEM: "process or principle",
+      LINKS: "underlying mechanism, conditions, and outcomes", BULLETS: "mechanisms, and applications",
+      OUTSIDE: "theories, mechanisms, compounds, or equations", SCENARIOS: "experimental, laboratory, field-observation, or real-world scenarios",
+      chains: ["Observation \u2192 mechanism", "Mechanism \u2192 predicted outcome", "Experiment \u2192 result \u2192 conclusion", "Change in conditions \u2192 shift in the system \u2192 outcome", "Structure \u2192 property \u2192 behavior"],
+      hard: ["Experimental finding \u2192 mechanism \u2192 prediction.", "Data or graph \u2192 interpretation \u2192 conclusion."],
+      DISTRACTORS: "related mechanisms, common misconceptions, reversed relationships, or the results of plausible calculation errors" },
+    engineering: { name: "Engineering",
+      CONCEPTS: "principles, governing equations, models, design methods, units, and worked problems", RELATIONS: "principles, governing equations, assumptions, and applications",
+      EMPHASIS: "worked examples, derivations, design rules, or repeatedly emphasized points", ITEM: "principle or method",
+      LINKS: "governing equation, assumptions and limits, and practical consequences", BULLETS: "governing equations, and applications",
+      OUTSIDE: "theories, equations, methods, or standards", SCENARIOS: "realistic design, analysis, or troubleshooting scenarios with given values",
+      chains: ["Given conditions \u2192 governing principle \u2192 calculated result", "Design choice \u2192 effect on performance", "Observed failure \u2192 cause \u2192 fix", "Change in a parameter \u2192 predicted change in behavior"],
+      hard: ["Scenario \u2192 choose the right model \u2192 solve in several steps.", "Compare alternative designs and pick the best one under the given constraints."],
+      DISTRACTORS: "the results of common calculation errors, wrong assumptions, unit mistakes, or similar but inapplicable formulas" },
+    math: { name: "Mathematics and statistics",
+      CONCEPTS: "definitions, theorems, methods, formulas, and worked examples", RELATIONS: "definitions, theorems, methods, and the problem types they solve",
+      EMPHASIS: "worked examples, proof steps, solution methods, or repeatedly emphasized points", ITEM: "theorem or method",
+      LINKS: "conditions for use, steps, and typical results", BULLETS: "methods, and worked examples",
+      OUTSIDE: "theorems, methods, or notation", SCENARIOS: "word problems, applied scenarios, or computational problems with given values",
+      chains: ["Problem \u2192 choose a method \u2192 compute", "Conditions \u2192 which theorem applies \u2192 conclusion", "Data \u2192 appropriate test or model \u2192 interpretation", "Change in a parameter \u2192 effect on the result"],
+      hard: ["Multi-step problems that combine two or more methods.", "Identify which assumption fails and what that implies."],
+      DISTRACTORS: "the results of common algebra or sign errors, misapplied formulas, or a method that doesn't fit the conditions" },
+    computing: { name: "Computer science and IT",
+      CONCEPTS: "algorithms, data structures, protocols, design patterns, complexity results, and code examples", RELATIONS: "algorithms, data structures, trade-offs, and use cases",
+      EMPHASIS: "worked examples, code walkthroughs, trade-offs, or repeatedly emphasized points", ITEM: "algorithm or concept",
+      LINKS: "how it works, its trade-offs or complexity, and when to use it", BULLETS: "trade-offs, and example uses",
+      OUTSIDE: "languages, libraries, algorithms, or protocols", SCENARIOS: "code snippets, system or design scenarios, debugging cases, or input/output traces",
+      chains: ["Code \u2192 trace execution \u2192 output", "Requirements \u2192 choose a structure or algorithm \u2192 consequence", "Bug symptom \u2192 cause \u2192 fix", "Change in input size or design \u2192 effect on performance"],
+      hard: ["Trace or analyze code across several steps.", "Compare designs and justify the best one under the given constraints."],
+      DISTRACTORS: "off-by-one results, plausible but wrong complexities, similar APIs or algorithms, or common misconceptions" },
+    humanities: { name: "Humanities and social sciences",
+      CONCEPTS: "theories, thinkers, arguments, events, terms, and case studies", RELATIONS: "theories, thinkers, arguments, evidence, and historical context",
+      EMPHASIS: "interpretations, comparisons, key examples, or repeatedly emphasized points", ITEM: "theory, event, or argument",
+      LINKS: "context, causes, key evidence, and consequences or significance", BULLETS: "key arguments, and evidence",
+      OUTSIDE: "thinkers, events, theories, or sources", SCENARIOS: "short passages, primary-source excerpts, case studies, or realistic scenarios",
+      chains: ["Passage \u2192 identify the argument \u2192 evaluate it", "Event \u2192 causes \u2192 consequences", "Theory \u2192 apply to a new case \u2192 conclusion", "Evidence \u2192 which interpretation it supports"],
+      hard: ["Apply a theory to an unfamiliar case and predict the outcome.", "Compare two perspectives and identify what distinguishes them."],
+      DISTRACTORS: "related thinkers or schools, plausible misreadings, true statements that don't answer the question, or reversed cause and effect" },
+    business: { name: "Business and economics",
+      CONCEPTS: "models, frameworks, formulas, principles, and case examples", RELATIONS: "models, assumptions, formulas, and their applications",
+      EMPHASIS: "worked examples, case discussions, calculations, or repeatedly emphasized points", ITEM: "model or principle",
+      LINKS: "assumptions, how it is applied, and its implications", BULLETS: "formulas, and applications",
+      OUTSIDE: "models, regulations, companies, or data", SCENARIOS: "business cases, market scenarios, or problems with given figures",
+      chains: ["Scenario \u2192 choose a framework \u2192 recommendation", "Change in a variable \u2192 effect on the outcome", "Data \u2192 calculation \u2192 decision", "Policy or event \u2192 market response"],
+      hard: ["Case \u2192 apply several concepts \u2192 best decision.", "Compare strategies under the given constraints."],
+      DISTRACTORS: "the results of common calculation errors, misapplied frameworks, plausible but weaker decisions, or reversed effects" },
+    law: { name: "Law",
+      CONCEPTS: "doctrines, rules, elements, tests, statutes, and leading cases", RELATIONS: "rules, elements, exceptions, and leading cases",
+      EMPHASIS: "hypotheticals, case holdings, exceptions, or repeatedly emphasized points", ITEM: "rule or doctrine",
+      LINKS: "elements, exceptions, and how courts apply it", BULLETS: "elements, and leading cases",
+      OUTSIDE: "cases, statutes, or doctrines", SCENARIOS: "fact patterns (hypotheticals) with a clear call of the question",
+      chains: ["Facts \u2192 issue \u2192 rule \u2192 application \u2192 conclusion", "Change in one fact \u2192 change in the outcome", "Rule \u2192 exception \u2192 result"],
+      hard: ["Fact patterns with several issues where one fact decides the outcome.", "Distinguish similar doctrines or tests."],
+      DISTRACTORS: "the right rule applied to the wrong facts, a similar doctrine, a minority rule, or a correct conclusion with the wrong reasoning" },
+    other: { name: "Other",
+      CONCEPTS: "core concepts, processes, principles, methods, and examples", RELATIONS: "ideas, processes, causes and effects, and examples",
+      EMPHASIS: "worked examples, step-by-step explanations, or repeatedly emphasized points", ITEM: "concept",
+      LINKS: "underlying principle, how it is applied, and its consequences or limitations", BULLETS: "key relationships, and applications",
+      OUTSIDE: "concepts, facts, or methods", SCENARIOS: "realistic scenarios, examples, or problems drawn from the subject",
+      chains: ["Situation \u2192 principle \u2192 outcome", "Cause \u2192 effect", "Concept \u2192 apply to a new example", "Change in a condition \u2192 predicted result"],
+      hard: ["Scenario \u2192 principle \u2192 multi-step prediction.", "Compare similar concepts and identify the distinguishing feature."],
+      DISTRACTORS: "nearby concepts, common misconceptions, or statements that are true but don't answer the question" }
+  };
+  var PB_LEVELS = {
+    hs: { name: "High school / AP", level: "high school", exam: "high school exam", audience: function(s){ return "High school students taking " + s; } },
+    ug: { name: "Undergraduate", level: "undergraduate", exam: "university exam", audience: function(s){ return "Undergraduate students in " + s; } },
+    grad: { name: "Graduate", level: "graduate", exam: "graduate exam", audience: function(s){ return "Graduate students in " + s; } },
+    pro: { name: "Professional school (medicine, law, nursing\u2026)", level: "professional school", exam: "professional school exam", audience: function(s){ return "Professional school students in " + s; } },
+    board: { name: "Board or licensing exam prep", level: "board exam", exam: "board exam", audience: function(s, exam){ return "Candidates preparing for " + (exam || "their board exam") + " (" + s + ")"; } }
+  };
+  var PB_DIFFICULTY = {
+    intro: { name: "Introductory", EASY: "35-45%", MODERATE: "45-55%", HARD: "5-10%" },
+    moderate: { name: "Moderate", EASY: "20-30%", MODERATE: "50-60%", HARD: "15-25%" },
+    challenging: { name: "Challenging", EASY: "10-15%", MODERATE: "50-60%", HARD: "25-35%" },
+    very: { name: "Very challenging", EASY: "0-10%", MODERATE: "35-45%", HARD: "50-60%" }
+  };
+  var PB_COUNTS = [["max", "As many as the material supports (20+)"], ["10", "10"], ["15", "15"], ["20", "20"], ["25", "25"], ["30", "30"], ["40", "40"], ["50", "50"]];
+  var PB_DEFAULTS = { subject: "", field: "other", level: "ug", exam: "", difficulty: "challenging", count: "max" };
+  var PB_STEPS = [
+    { file: "slide_miner.md", title: "Step 1 \u00B7 Extract the lecture data", how: "Paste into a new Gemini or Copilot chat with your slides (and transcript) attached. Save the reply as slide_data.md." },
+    { file: "data_sanitizer.md", title: "Step 1.5 (optional) \u00B7 Filter to the objectives", how: "Paste into a new Gemini chat with slide_data.md, the transcripts and the learning objectives attached. Save the reply as slide_data(cleaned).md." },
+    { file: "style_researcher.md", title: "Step 2 \u00B7 Plan the question style", how: "Paste into a new ChatGPT chat and answer its questions about your current unit. Save the reply as question_styling.md." },
+    { file: "que_generator.md", title: "Step 3 \u00B7 Write the questions", how: "Paste into a new Claude chat with slide_data.md and question_styling.md attached. Save the CSV, then load it on Home with Start new quiz." }
+  ];
+
+  function pbRead(){
+    var st = {};
+    try { st = JSON.parse(localStorage.getItem(NS + "builder")) || {}; } catch (e){}
+    var out = {};
+    Object.keys(PB_DEFAULTS).forEach(function(k){ out[k] = typeof st[k] === "string" ? st[k] : PB_DEFAULTS[k]; });
+    return out;
+  }
+  function pbForm(){
+    return { subject: el("pbSubject").value.trim(), field: el("pbField").value, level: el("pbLevel").value,
+             exam: el("pbExam").value.trim(), difficulty: el("pbDifficulty").value, count: el("pbCount").value };
+  }
+  // Values for every {{placeholder}} in prompts/templates/*.md
+  function pbVars(f){
+    var fld = PB_FIELDS[f.field] || PB_FIELDS.other, lvl = PB_LEVELS[f.level] || PB_LEVELS.ug, dif = PB_DIFFICULTY[f.difficulty] || PB_DIFFICULTY.challenging;
+    var subject = f.subject || "[your course]";
+    var v = {
+      SUBJECT: subject, LEVEL: lvl.level, AUDIENCE: lvl.audience(subject, f.exam),
+      EXAM_STYLE: (f.exam || lvl.exam) + "-style", DIFFICULTY: dif.name.toLowerCase(),
+      EASY: dif.EASY, MODERATE: dif.MODERATE, HARD: dif.HARD,
+      CHAINS: fld.chains.map(function(c){ return "- " + c; }).join("\n"),
+      HARD_CHAINS: fld.hard.map(function(c){ return "- " + c; }).join("\n"),
+      COUNT: f.count === "max" ? "at least 20 questions, or as many as the content supports, unless I specify otherwise"
+                              : "exactly " + f.count + " questions (fewer only if the content cannot support that many)"
+    };
+    ["CONCEPTS", "RELATIONS", "EMPHASIS", "ITEM", "LINKS", "BULLETS", "OUTSIDE", "SCENARIOS", "DISTRACTORS"].forEach(function(k){ v[k] = fld[k]; });
+    return v;
+  }
+  function pbFill(template, vars){ return template.replace(/\{\{(\w+)\}\}/g, function(m, k){ return k in vars ? vars[k] : m; }); }
+  function pbSlug(f){ return (f.subject || "my_course").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "my_course"; }
+  function pbPrompts(){
+    var f = pbForm(), vars = pbVars(f);
+    return PB_STEPS.map(function(st){ return { name: st.file, text: pbFill(PROMPT_TEMPLATES[st.file] || "", vars) }; });
+  }
+
+  var pbCards = null;   // { file: { pre, getText } } once the output is built
+  function setupBuilder(){
+    var fill = function(id, pairs){ var sel = el(id); sel.innerHTML = ""; pairs.forEach(function(pr){ var o = document.createElement("option"); o.value = pr[0]; o.textContent = pr[1]; sel.appendChild(o); }); };
+    fill("pbField", Object.keys(PB_FIELDS).map(function(k){ return [k, PB_FIELDS[k].name]; }));
+    fill("pbLevel", Object.keys(PB_LEVELS).map(function(k){ return [k, PB_LEVELS[k].name]; }));
+    fill("pbDifficulty", Object.keys(PB_DIFFICULTY).map(function(k){ return [k, PB_DIFFICULTY[k].name]; }));
+    fill("pbCount", PB_COUNTS);
+    pbApplyForm(pbRead());
+    ["pbSubject", "pbExam"].forEach(function(id){ el(id).addEventListener("input", pbChanged); });
+    ["pbField", "pbLevel", "pbDifficulty", "pbCount"].forEach(function(id){ el(id).addEventListener("change", pbChanged); });
+    el("pbZipBtn").addEventListener("click", function(){
+      var f = pbForm(), slug = pbSlug(f);
+      download(zipStore(pbPrompts().map(function(p){ return { name: slug + "_prompts/" + p.name, text: p.text }; })), slug + "_prompts.zip", "application/zip");
+    });
+    el("pbResetBtn").addEventListener("click", function(){ pbApplyForm(PB_DEFAULTS); pbChanged(); });
+  }
+  function pbApplyForm(f){
+    el("pbSubject").value = f.subject; el("pbField").value = f.field; el("pbLevel").value = f.level;
+    el("pbExam").value = f.exam; el("pbDifficulty").value = f.difficulty; el("pbCount").value = f.count;
+  }
+  function pbChanged(){
+    try { localStorage.setItem(NS + "builder", JSON.stringify(pbForm())); } catch (e){}
+    renderBuilder();
+  }
+  function renderBuilder(){
+    var out = el("pbOutput"), prompts = pbPrompts(), slug = pbSlug(pbForm());
+    if (!pbCards){
+      pbCards = {};
+      var h = document.createElement("h2"); h.textContent = "Your prompts"; h.style.marginTop = "0"; out.appendChild(h);
+      PB_STEPS.forEach(function(st){
+        var box = document.createElement("div"); box.className = "step";
+        var t = document.createElement("h3"); t.textContent = st.title; box.appendChild(t);
+        var p = document.createElement("p"); p.textContent = st.how; box.appendChild(p);
+        pbCards[st.file] = { pre: null, text: "", fileName: st.file };   // before the card: it reads its text right away
+        var c = makePromptCard(st.file, function(){ return pbCards[st.file].text; }, function(){ return pbCards[st.file].fileName; });
+        box.appendChild(c.card);
+        pbCards[st.file].pre = c.pre;
+        out.appendChild(box);
+      });
+    }
+    prompts.forEach(function(pr){
+      var c = pbCards[pr.name];
+      c.text = pr.text; c.fileName = slug + "_" + pr.name; c.pre.textContent = pr.text;
+    });
+  }
+
+  // Minimal zip writer (stored, no compression): enough for a few text files, and it works offline.
+  var CRC_TABLE = null;
+  function crc32(bytes){
+    if (!CRC_TABLE){
+      CRC_TABLE = [];
+      for (var n = 0; n < 256; n++){ var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; CRC_TABLE[n] = c >>> 0; }
+    }
+    var crc = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  function zipStore(files){
+    var enc = new TextEncoder(), parts = [], central = [], offset = 0, DOS_DATE = 0x21; // 1980-01-01
+    files.forEach(function(f){
+      var name = enc.encode(f.name), data = enc.encode(f.text), crc = crc32(data);
+      var lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); // UTF-8 names
+      lh.setUint16(8, 0, true); lh.setUint16(10, 0, true); lh.setUint16(12, DOS_DATE, true);
+      lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true);
+      lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+      parts.push(lh.buffer, name, data);
+      var ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+      ch.setUint16(10, 0, true); ch.setUint16(12, 0, true); ch.setUint16(14, DOS_DATE, true);
+      ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+      ch.setUint16(28, name.length, true); ch.setUint32(38, 0, true); ch.setUint32(42, offset, true);
+      central.push(ch.buffer, name);
+      offset += 30 + name.length + data.length;
+    });
+    var cdSize = central.reduce(function(n, part){ return n + part.byteLength; }, 0);
+    var end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+    end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [end.buffer]), { type: "application/zip" });
+  }
+
   function helpJump(id){
     show("helpScreen");
     var t = el(id);
@@ -2965,6 +3219,10 @@
     b.addEventListener("click", function(){ var t = el(b.getAttribute("data-help")); if (t) t.scrollIntoView({ behavior: "smooth" }); });
   });
   el("whatsNewBtn").addEventListener("click", function(){ helpJump("help-whatsnew"); });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-helpjump]"), function(b){ //v3.0 - Phase 9
+    b.addEventListener("click", function(){ helpJump(b.getAttribute("data-helpjump")); });
+  });
+  setupBuilder(); //v3.0 - Phase 9
   el("helpTemplateBtn").addEventListener("click", function(){ download(templateCsv(), "quiz_template.csv", "text/csv"); });
   el("helpOpenLiteBtn").addEventListener("click", function(){ location.href = "lite.html"; });
   el("copyEnvBtn").addEventListener("click", function(){ var b = el("copyEnvBtn"); copyText(envLine()).then(function(){ flash(b, "Copied"); }); });

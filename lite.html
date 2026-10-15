@@ -167,6 +167,10 @@
   .promptcard details{margin-top:8px}
   .promptcard summary{cursor:pointer; color:var(--muted); font-size:calc(13px * var(--fs))}
   .promptcard pre{white-space:pre-wrap; overflow-wrap:anywhere; font-size:calc(12.5px * var(--fs)); line-height:calc(1.45 * var(--lh)); background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:10px; max-height:320px; overflow:auto}
+  .pb-form{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-top:6px}  /*v3.0 - Phase 9*/
+  .pb-form .wide{grid-column:1 / -1}
+  .pb-form .fu-field input, .pb-form .fu-field select{width:100%; min-width:0}   /* beats .fu-field input{width:120px} */
+  .pb-steps .step{background:var(--surface)}
   .versions dt{font-weight:700; margin-top:14px}
   .versions dd{margin:4px 0 0 0; color:var(--ink)}
   .fbframe{width:100%; height:1150px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface); margin-top:12px}
