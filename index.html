@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quiz Qrusher</title>
+<title>QuizQrusher</title>
 <!--v3.0 - full app. Built from versions/quiz_qrusher_v2.3.3.html; see docs/V3_PLAN.md-->
 <!--v3.0 - Phase 8: installable app (PWA). These files only matter on the hosted site; from disk they're ignored.-->
 <link rel="manifest" href="manifest.webmanifest">
@@ -31,6 +31,7 @@
     --shadow-knob:0 1px 3px rgba(0,0,0,.3);  /*v3.0*/
     --overlay:rgba(10,14,20,.55);            /*v3.0 - behind dialogs*/
     --fs:1; --lh:1;                          /*v3.0 - text size and line spacing multipliers (Settings)*/
+    --app-qq:#4338CA; --app-ib:#1E7A4C; --app-cc:#C2410C;  /*v3.1 - each study app's own color, for the app switcher*/
     --font-body:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   /* v3.0 - dark tokens apply for "Match system" when the OS is dark, and always for data-theme="dark" */
@@ -46,6 +47,7 @@
         --navy:#8FB0E8; --navy-soft:#1A2436;  /*v2.3.2*/
         --on-accent:#FFFFFF;                  /*v3.0*/
         --knob:#F4F6FA;                       /*v3.0*/
+        --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C;  /*v3.1*/
         --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
     }
   }
@@ -60,6 +62,7 @@
       --navy:#8FB0E8; --navy-soft:#1A2436;  /*v2.3.2*/
       --on-accent:#FFFFFF;                  /*v3.0*/
       --knob:#F4F6FA;                       /*v3.0*/
+      --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C;  /*v3.1*/
       --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
   }
   /* v3.0 - fonts (Settings > Text). Atkinson Hyperlegible: Copyright 2020 Braille Institute of America, Inc.,
@@ -106,9 +109,26 @@
   .brand{background:none; border:none; color:var(--ink); font-size:calc(17px * var(--fs)); font-weight:750; letter-spacing:-.02em; padding:14px 0}
   .brand span{color:var(--accent)}
   .brandgrp{display:flex; align-items:center; gap:2px}              /*v3.0.2 - back link + logotype*/
-  .homeback{display:inline-grid; place-items:center; width:24px; height:32px; margin-left:-8px; color:var(--muted); border-radius:6px; text-decoration:none}
-  .homeback:hover{color:var(--ink); background:var(--surface-2)}
-  .homeback svg{width:18px; height:18px}
+  /* v3.1 - app switcher: the down arrow before the logotype opens a menu of the study apps, with Home last (replaces v3.0.2's "<" link) */
+  .appsw{position:relative; display:flex; align-items:center}
+  .appsw-btn{display:inline-grid; place-items:center; width:26px; height:32px; margin-left:-8px; padding:0; background:none; border:none; color:var(--muted); border-radius:6px}
+  .appsw-btn:hover, .appsw-btn[aria-expanded="true"]{color:var(--ink); background:var(--surface-2)}
+  .appsw-btn svg{width:18px; height:18px; transition:transform .15s ease}
+  .appsw-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
+  .appsw-menu{position:absolute; top:calc(100% + 6px); left:-8px; z-index:60; width:250px; max-width:calc(100vw - 24px); padding:6px;
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+  .appsw-item{display:flex; align-items:center; gap:12px; padding:8px 10px; border-radius:var(--radius-sm); color:var(--ink); text-decoration:none;
+    font-size:calc(16.5px * var(--fs)); font-weight:750; letter-spacing:-.02em}
+  .appsw-item:hover, .appsw-item:focus-visible{background:var(--surface-2)}
+  .appsw-item svg{width:30px; height:30px; flex:none; border-radius:8px}
+  .appsw-item b{font-weight:inherit}
+  .appsw-item.qq b{color:var(--app-qq)} .appsw-item.ib b{color:var(--app-ib)} .appsw-item.cc b{color:var(--app-cc)}
+  .appsw-item[aria-current="page"]::after{content:""; margin-left:auto; width:8px; height:8px; border-radius:50%; background:var(--muted)}
+  .appsw-home{display:flex; align-items:center; gap:12px; margin-top:6px; padding:9px 10px; border:1px solid var(--line); border-radius:var(--radius-sm);
+    background:var(--surface-2); color:var(--ink); text-decoration:none; font-size:calc(15px * var(--fs)); font-weight:650}
+  .appsw-home:hover, .appsw-home:focus-visible{border-color:var(--accent)}
+  .appsw-home svg{width:30px; height:30px; flex:none; border-radius:8px; box-shadow:0 0 0 1px var(--line)}
+  .appsw-home small{display:block; font-size:calc(12.5px * var(--fs)); font-weight:500; color:var(--muted)}
   .tabs{display:flex; align-items:center; gap:2px; overflow-x:auto; scrollbar-width:none; flex:1; min-width:0}
   .tabs .push{flex:1; min-width:12px}                                 /*v3.0 - pushes Feedback, Help and Settings to the right edge*/
   .tab.icon{display:inline-grid; place-items:center; padding:12px 10px 10px}
@@ -117,7 +137,7 @@
   .tab{background:none; border:none; color:var(--muted); font-size:calc(14.5px * var(--fs)); font-weight:600; padding:15px 11px 13px; border-bottom:2px solid transparent; white-space:nowrap}
   .tab:hover{color:var(--ink)}
   .tab[aria-current="page"]{color:var(--accent); border-bottom-color:var(--accent)}
-  @media (max-width:560px){ .appbar-in{gap:0} .brand{padding:12px 0 0} .homeback{margin-top:12px} .tabs{flex-basis:100%} .tab{padding:10px 10px 11px} }
+  @media (max-width:560px){ .appbar-in{gap:0} .brand{padding:12px 0 0} .appsw{margin-top:12px} .tabs{flex-basis:100%} .tab{padding:10px 10px 11px} }
 
   /* ---------- Home ---------- */ /*v3.0*/
   .tiles{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px}
@@ -175,6 +195,12 @@
   .promptcard details{margin-top:8px}
   .promptcard summary{cursor:pointer; color:var(--muted); font-size:calc(13px * var(--fs))}
   .promptcard pre{white-space:pre-wrap; overflow-wrap:anywhere; font-size:calc(12.5px * var(--fs)); line-height:calc(1.45 * var(--lh)); background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:10px; max-height:320px; overflow:auto}
+  .psets{display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px 16px; margin-top:18px; padding:14px 16px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); scroll-margin-top:12px}  /*v3.1 - prompt set picker*/
+  .psets .fu-field select{min-width:240px}
+  .psets .fu-field input{width:240px}
+  .psetnote{flex-basis:100%; margin:0; font-size:calc(13.5px * var(--fs)); color:var(--muted)}
+  .psetnote .linkbtn{font-size:inherit; padding:0}
+  .psetnow{color:var(--muted)}
   .pb-form{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-top:6px}  /*v3.0 - Phase 9*/
   .pb-form .wide{grid-column:1 / -1}
   .pb-form .fu-field input, .pb-form .fu-field select{width:100%; min-width:0}   /* beats .fu-field input{width:120px} */
@@ -472,9 +498,17 @@
 <!-- ====== APP BAR ====== --> <!--v3.0-->
 <header class="appbar">
   <div class="appbar-in">
-    <div class="brandgrp"> <!--v3.0.2 - "<" back to the study apps homepage (hosted only; hidden from disk)-->
-      <a class="homeback hidden" id="homeBack" href="../" aria-label="All study apps" title="All study apps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-      <button class="brand" type="button" data-go="home">Quiz <span>Qrusher</span></button>
+    <div class="brandgrp"> <!--v3.1 - the down arrow opens a menu of the study apps, then Home (hosted only; hidden from disk). Was v3.0.2's "<" link-->
+      <div class="appsw hidden" id="appSwitch">
+        <button class="appsw-btn" id="appSwitchBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="appSwitchMenu" aria-label="Switch study app" title="Study apps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="appsw-menu hidden" id="appSwitchMenu" role="menu" aria-label="Study apps">
+          <a class="appsw-item qq" role="menuitem" href="../Quiz_Qrusher/" aria-current="page"><svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="swqq" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5145E6"/><stop offset="1" stop-color="#3A31B8"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#swqq)"/><g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round"><circle cx="246" cy="240" r="153" stroke-width="50"/><path d="M368 336L430 378" stroke-width="54"/><path d="M190 244L232 288L304 200" stroke-width="34"/></g></svg><span>Quiz<b>Qrusher</b></span></a>
+          <a class="appsw-item ib" role="menuitem" href="../Class_Base/"><svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="swib" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#24935C"/><stop offset="1" stop-color="#16603B"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#swib)"/><rect x="132" y="92" width="268" height="190" rx="24" fill="#FFFFFF" fill-opacity=".42"/><rect x="92" y="130" width="282" height="206" rx="26" fill="#FFFFFF"/><path d="M136 186H290M136 230H252M136 274H214" fill="none" stroke="#1B7047" stroke-width="22" stroke-linecap="round"/><circle cx="338" cy="326" r="70" fill="#1B7047" stroke="#FFFFFF" stroke-width="30"/><path d="M392 380L432 420" fill="none" stroke="#FFFFFF" stroke-width="42" stroke-linecap="round"/></svg><span>Info<b>Base</b></span></a>
+          <a class="appsw-item cc" role="menuitem" href="../CwikCard/"><svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="swcc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F26B1D"/><stop offset="1" stop-color="#B83A0A"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#swcc)"/><rect x="168" y="92" width="232" height="300" rx="30" fill="#FFFFFF" fill-opacity=".42" transform="rotate(12 284 242)"/><g transform="rotate(-6 236 268)"><rect x="120" y="118" width="232" height="300" rx="30" fill="#FFFFFF"/><path d="M262 166L192 290H240L218 372L290 244H242Z" fill="#C2410C"/></g></svg><span>Cwik<b>Card</b></span></a>
+          <a class="appsw-home" role="menuitem" href="../"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#131A24"/><rect x="14" y="14" width="16" height="16" rx="4" fill="#5145E6"/><rect x="34" y="14" width="16" height="16" rx="4" fill="#24935C"/><rect x="14" y="34" width="36" height="16" rx="4" fill="#E8611A"/></svg><span>Home<small>All study apps</small></span></a>
+        </div>
+      </div>
+      <button class="brand" type="button" data-go="home">Quiz<span>Qrusher</span></button>
     </div>
     <nav class="tabs" aria-label="Main">
       <button class="tab" type="button" data-tab="home" aria-current="page">Home</button>
@@ -495,7 +529,7 @@
   <!-- ====== HOME ====== --> <!--v3.0-->
   <section id="homeScreen">
     <div class="card hero">
-      <h1>Quiz Qrusher</h1>
+      <h1>QuizQrusher</h1>
       <p class="lede" style="margin-bottom:0">Load a CSV of multiple-choice questions, take the quiz, and get a graded report that shows your weak categories. Your quizzes save automatically in this browser.</p>
     </div>
     <div class="banner hidden" id="storageBanner" role="status"></div>
@@ -521,10 +555,10 @@
     <div class="homelinks"> <!--v3.0 - Phase 7-->
       <a class="btn sm subtle" id="openLiteBtn" href="lite.html">Open Lite version</a>
       <button class="btn sm subtle" id="downloadLiteBtn" type="button">Download for offline use</button> <!--v3.0 - Phase 6: Lite with your settings baked in-->
-      <a class="btn sm subtle" id="downloadPromptsBtn" href="prompts/medical/medical_prompts.zip" download="medical_prompts.zip">Download prompts</a>
+      <button class="btn sm subtle" id="downloadPromptsBtn" type="button">Download prompts</button> <!--v3.1 - the prompt set picked in Help, blanks filled in-->
     </div>
     <p class="homefoot muted">
-      Quiz Qrusher v<span id="appVersion"></span> &middot; <button class="linkbtn" id="whatsNewBtn" type="button">What's new</button>
+      QuizQrusher v<span id="appVersion"></span> &middot; <button class="linkbtn" id="whatsNewBtn" type="button">What's new</button>
     </p>
   </section>
 
@@ -580,7 +614,7 @@
     <div class="backbar"><button class="linkbtn back" type="button" data-go="home">&larr; Home</button></div>
     <div class="card hero">
       <h1>Import a quiz</h1>
-      <p class="lede">Bring in a backup file (.json) from Quiz Qrusher 3, a saved-progress file (.txt) from version 2, or a new question CSV.</p>
+      <p class="lede">Bring in a backup file (.json) from QuizQrusher 3, a saved-progress file (.txt) from version 2, or a new question CSV.</p>
 
       <label class="drop" id="importDrop" for="importInput" tabindex="0" role="button" aria-label="Choose a file to import">
         <span class="glyph" aria-hidden="true">
@@ -741,7 +775,13 @@
     <div class="backbar hidden" id="helpBackBar"><button class="linkbtn back" id="helpBackBtn" type="button">&larr; Back to quiz</button></div> <!--v3.0-->
     <div class="card hero helpbody" id="helpBody"> <!--v3.0 - Phase 7: replaces the old PDF guides-->
       <h1>Help</h1>
-      <p class="lede" style="margin-bottom:0">Quiz Qrusher turns your course material into multiple-choice practice quizzes: AI models write the questions as a CSV, and this app runs the quiz, grades it, and shows where to focus next. It works for any subject; the prompts below are the medical-school set, used here as the worked example.</p>
+      <p class="lede" style="margin-bottom:0">QuizQrusher turns your course material into multiple-choice practice quizzes: AI models write the questions as a CSV, and this app runs the quiz, grades it, and shows where to focus next. It works for any subject: pick your field below to see its prompts.</p>
+      <div class="psets" id="help-sets"> <!--v3.1 - premade prompt sets; the choice drives The AI workflow below and Download prompts on Home-->
+        <label class="fu-field"><span>Prompt set</span><select id="psetSelect"></select></label>
+        <label class="fu-field" id="psetCourseField"><span>Your class or topic</span>
+          <input id="psetCourse" type="text" maxlength="80" autocomplete="off"></label>
+        <p class="psetnote"><span id="psetBlankNote">It fills in the <code>[COURSE OR TOPIC]</code> blanks in the prompts; leave it empty to fill them in yourself. </span>If you don't see yours listed, check out the <button class="linkbtn" type="button" data-tab="builder">Prompt Builder</button>.</p>
+      </div>
       <nav class="helpnav" aria-label="Help sections">
         <button type="button" data-help="help-start">Getting started</button>
         <button type="button" data-help="help-ai">The AI workflow</button>
@@ -764,37 +804,38 @@
       </ol>
 
       <h2 id="help-ai">The AI workflow</h2>
+      <p class="psetnow">Showing the <strong data-psetname>Medical school (MD/DO)</strong> prompts. <button class="linkbtn" type="button" data-help="help-sets">Change</button></p> <!--v3.1-->
       <p>Each step uses the model that's best at that job. If you don't pay for one of them, use its free tier until you hit the limit, then switch to whichever model you have.</p>
       <table class="helptable">
         <thead><tr><th>Step</th><th>Task</th><th>Prompt</th><th>Suggested model</th></tr></thead>
-        <tbody>
-          <tr><td>1</td><td>Extract the lecture data</td><td><code>slide_miner_v1.md</code></td><td>Gemini or Copilot (handle large slide decks and transcripts)</td></tr>
-          <tr><td>1.5</td><td>Optional: filter to the learning objectives</td><td><code>data_sanitizer_v2.md</code></td><td>Gemini</td></tr>
-          <tr><td>2</td><td>Plan the question style</td><td><code>style_researcher_v2.md</code></td><td>ChatGPT (precise rule-following)</td></tr>
-          <tr><td>3</td><td>Write the questions</td><td><code>que_generator_v3.md</code></td><td>Claude (careful reasoning and clean CSV)</td></tr>
+        <tbody> <!--v3.1 - data-pfile names follow the prompt set-->
+          <tr><td>1</td><td>Extract the lecture data</td><td><code data-pfile="miner">slide_miner_v1.md</code></td><td>Gemini or Copilot (handle large slide decks and transcripts)</td></tr>
+          <tr><td>1.5</td><td>Optional: filter to the learning objectives</td><td><code data-pfile="sanitizer">data_sanitizer_v2.md</code></td><td>Gemini</td></tr>
+          <tr><td>2</td><td>Plan the question style</td><td><code data-pfile="style">style_researcher_v2.md</code></td><td>ChatGPT (precise rule-following)</td></tr>
+          <tr><td>3</td><td>Write the questions</td><td><code data-pfile="generator">que_generator_v3.md</code></td><td>Claude (careful reasoning and clean CSV)</td></tr>
         </tbody>
       </table>
       <div class="note"><p>Turn on each model's strongest reasoning mode (for example Gemini Pro with extended thinking, Copilot "Think Deeper", ChatGPT "Think", Claude's largest model at high effort). Always start a <strong>new</strong> chat for each step.</p></div>
 
       <div class="step"><h3><span class="num">Step 1</span>Extract the lecture data</h3>
-        <ul><li>Paste <code>slide_miner_v1.md</code> into a new Gemini or Copilot chat and attach your lecture slides (and transcript, if you have one).</li>
+        <ul><li>Paste <code data-pfile="miner">slide_miner_v1.md</code> into a new Gemini or Copilot chat and attach your lecture slides (and transcript, if you have one).</li>
         <li>Save the reply as <code>slide_data.md</code>.</li></ul>
-        <div class="promptslot" data-prompt="slide_miner_v1.md"></div>
+        <div class="promptslot" data-step="miner"></div>
       </div>
       <div class="step"><h3><span class="num">Step 1.5</span>Optional: filter to the objectives</h3>
-        <ul><li>Paste <code>data_sanitizer_v2.md</code> into a new Gemini chat and attach <code>slide_data.md</code>, the transcripts and the learning objectives.</li>
+        <ul><li>Paste <code data-pfile="sanitizer">data_sanitizer_v2.md</code> into a new Gemini chat and attach <code>slide_data.md</code>, the transcripts and the learning objectives.</li>
         <li>Save the reply as <code>slide_data(cleaned).md</code> and use it instead of <code>slide_data.md</code> from here on.</li></ul>
-        <div class="promptslot" data-prompt="data_sanitizer_v2.md"></div>
+        <div class="promptslot" data-step="sanitizer"></div>
       </div>
       <div class="step"><h3><span class="num">Step 2</span>Plan the question style</h3>
-        <ul><li>Paste <code>style_researcher_v2.md</code> into a new ChatGPT chat and answer its short questions about your current block (topics, professor hints).</li>
+        <ul><li>Paste <code data-pfile="style">style_researcher_v2.md</code> into a new ChatGPT chat and answer its short questions about your current block (topics, professor hints).</li>
         <li>Save the reply as <code>question_styling.md</code>.</li></ul>
-        <div class="promptslot" data-prompt="style_researcher_v2.md"></div>
+        <div class="promptslot" data-step="style"></div>
       </div>
       <div class="step"><h3><span class="num">Step 3</span>Write the questions</h3>
-        <ul><li>Paste <code>que_generator_v3.md</code> into a new Claude chat and attach <code>slide_data.md</code> (or the cleaned version) and <code>question_styling.md</code>.</li>
+        <ul><li>Paste <code data-pfile="generator">que_generator_v3.md</code> into a new Claude chat and attach <code>slide_data.md</code> (or the cleaned version) and <code>question_styling.md</code>.</li>
         <li>Save the CSV it returns, e.g. <code>question_input_10252312.csv</code> (named by month, day, year and hour).</li></ul>
-        <div class="promptslot" data-prompt="que_generator_v3.md"></div>
+        <div class="promptslot" data-step="generator"></div>
       </div>
       <div class="step"><h3><span class="num">Step 4</span>Take the quiz</h3>
         <ul><li>On Home, choose <strong>Start new quiz</strong> and drop in the CSV from Step 3.</li></ul>
@@ -802,7 +843,7 @@
       <div class="step"><h3><span class="num">Step 5</span>Review and follow up</h3>
         <ul><li>After you submit, download the <strong>Follow-up request</strong> and paste it, with your report and <code>slide_data.md</code>, into Claude for a new set aimed at your misses. Ask it to raise the difficulty if the questions felt easy.</li></ul>
       </div>
-      <p>Other subjects: the prompts above are written for medical school, but the workflow is the same anywhere. Use the <button class="linkbtn" type="button" data-tab="builder">Prompt Builder</button> to make the four prompts for your own course, level and exam.</p>
+      <p>Other subjects: if your field isn't in the prompt set list at the top of Help, the workflow is the same anywhere. Use the <button class="linkbtn" type="button" data-tab="builder">Prompt Builder</button> to make the four prompts for your own course, level and exam.</p>
 
       <h2 id="help-quiz">Taking a quiz</h2>
       <ul>
@@ -824,7 +865,8 @@
       </ul>
 
       <h3>Install it as an app</h3>
-      <p>On the hosted site, Quiz Qrusher can be installed like an app and then opens without an internet connection. In Chrome or Edge, use the install icon at the right end of the address bar. On an iPhone or iPad, in Safari, tap Share, then <strong>Add to Home Screen</strong> (installed apps also keep their saved quizzes longer in Safari). When a new version is out you'll see "A new version of Quiz Qrusher is ready": press <strong>Reload</strong> and your quiz is saved first.</p>
+      <p>On the hosted site, QuizQrusher can be installed like an app and then opens without an internet connection. In Chrome or Edge, use the install icon at the right end of the address bar. On an iPhone or iPad, in Safari, tap Share, then <strong>Add to Home Screen</strong> (installed apps also keep their saved quizzes longer in Safari). When a new version is out you'll see "A new version of QuizQrusher is ready": press <strong>Reload</strong> and your quiz is saved first.</p>
+      <p>On the hosted site, the down arrow next to the QuizQrusher name opens a menu of the other study apps: InfoBase for searching your slides and textbooks, and CwikCard, which turns the same question CSV into flashcards. Home, at the bottom of the menu, goes to the study apps homepage.</p> <!--v3.1-->
 
       <h2 id="help-review">Review and retake</h2>
       <ul>
@@ -837,7 +879,7 @@
       <p>The <strong>Follow-up request (.md)</strong> on Results is a ready-to-send prompt listing your weak categories, the concepts you missed and the wrong answers you chose. Pick a difficulty and question count (defaults are in Settings), download it, and give it to Claude with your <code>slide_data.md</code> and <code>question_styling.md</code>. You can also download the <strong>Quiz Report (.txt)</strong> and <strong>Missed Questions (.csv)</strong>.</p>
 
       <h2 id="help-lite">Lite version</h2>
-      <p>Lite is a single file that works offline, keeps one quiz at a time, and carries its settings inside itself. <button class="linkbtn" type="button" id="helpOpenLiteBtn">Open Lite</button> or use <strong>Download for offline use</strong> on Home, which bakes your current settings into the copy. Keep it in its own folder (for example "Quiz Qrusher Lite"). In Chrome or Edge, link that folder in Lite's Settings: saves go into a <code>saves</code> folder beside it, and <strong>Apply</strong> updates the Lite file directly. Otherwise Apply downloads a new copy to put in place of the old one.</p>
+      <p>Lite is a single file that works offline, keeps one quiz at a time, and carries its settings inside itself. <button class="linkbtn" type="button" id="helpOpenLiteBtn">Open Lite</button> or use <strong>Download for offline use</strong> on Home, which bakes your current settings into the copy. Keep it in its own folder (for example "QuizQrusher Lite"). In Chrome or Edge, link that folder in Lite's Settings: saves go into a <code>saves</code> folder beside it, and <strong>Apply</strong> updates the Lite file directly. Otherwise Apply downloads a new copy to put in place of the old one.</p>
 
       <h2 id="help-settings">Settings</h2>
       <p>The &#x2699; in the top right corner. Appearance (theme, accent color, color-blind-safe colors, reduced motion), text (size, line spacing, an easy-to-read font), quiz options (shuffling, category tags, the submit warning, the Focus cut-off, Tutor mode, timer), follow-up defaults, saving, and data tools (storage use, Export all, Clear all). Changes apply right away.</p>
@@ -852,6 +894,8 @@
 
       <h2 id="help-whatsnew">What's new</h2>
       <dl class="versions">
+        <dt>v3.1 &middot; October 2026</dt>
+        <dd>Now spelled QuizQrusher. Prompt sets for dental school, pre-med (biology and chemistry), electrical engineering and mechanical engineering join the medical set: pick one at the top of Help and type your class or topic to fill in the prompts' blanks (Download prompts on Home follows your choice). The down arrow next to the name opens a menu of the study apps (QuizQrusher, InfoBase and the new CwikCard flashcards) with Home at the bottom.</dd>
         <dt>v3.0.2 &middot; October 2026</dt>
         <dd>A "&lsaquo;" next to the Quiz Qrusher name takes you back to the study apps homepage.</dd>
         <dt>v3.0.1 &middot; October 2026</dt>
@@ -880,7 +924,7 @@
       <h1>Feedback</h1>
       <p class="lede" style="margin-bottom:0">Found a bug, want a feature, or have an idea for another app? Tell us below. If you're reporting a problem, paste this line into your answer:</p>
       <div class="envline"><code id="envInfo"></code><button class="btn sm subtle" id="copyEnvBtn" type="button">Copy</button></div>
-      <iframe class="fbframe" id="feedbackFrame" title="Quiz Qrusher feedback form"></iframe>
+      <iframe class="fbframe" id="feedbackFrame" title="QuizQrusher feedback form"></iframe>
       <p class="muted" style="font-size:calc(13px * var(--fs))">Form not showing (offline, or blocked by the browser)? <a href="https://forms.gle/CYLHooZ76LtAvRGi8" target="_blank" rel="noopener">Open it in a new tab</a>.</p>
     </div>
   </section>
@@ -938,7 +982,7 @@
 (function(){
   "use strict";
 
-  var APP_VERSION = "3.0.2";            //v3.0.2
+  var APP_VERSION = "3.1.0";            //v3.1
   var NS = "quizQrusher:";              //v3.0 - every GitHub Pages project of this user shares one origin, so namespace all keys
 
   var HAS_FSA = "showDirectoryPicker" in window; //v3.0 - feature check for the saves folder; never sniff the user agent for this
@@ -1155,9 +1199,9 @@
   function parseSaveFile(text){
     var obj;
     try { obj = JSON.parse(String(text).replace(/^﻿/, "")); }
-    catch (e){ throw new Error("That file isn't valid JSON, so it can't be a Quiz Qrusher backup."); }
-    if (!obj || obj.format !== SAVE_FORMAT) throw new Error("That JSON file isn't a Quiz Qrusher backup.");
-    if (typeof obj.version !== "number" || obj.version > SAVE_VERSION) throw new Error("That backup was made by a newer version of Quiz Qrusher. Update the app and try again.");
+    catch (e){ throw new Error("That file isn't valid JSON, so it can't be a QuizQrusher backup."); }
+    if (!obj || obj.format !== SAVE_FORMAT) throw new Error("That JSON file isn't a QuizQrusher backup.");
+    if (typeof obj.version !== "number" || obj.version > SAVE_VERSION) throw new Error("That backup was made by a newer version of QuizQrusher. Update the app and try again.");
     var b = obj.bank, a = obj.attempt;
     if (!b || typeof b.csvText !== "string" || !b.csvText) throw new Error("That backup is missing its question bank.");
     if (!a || !a.id || !a.questionOrder || !a.questionOrder.length) throw new Error("That backup is missing its quiz data.");
@@ -2144,7 +2188,7 @@
       return r.text();
     }).then(function(text){
       download(withBaked(text, { v: 1, nonce: uid("n"), madeAt: Date.now(), app: APP_VERSION, settings: picked }), LITE_FILE, "text/html");
-      showToast("Downloaded " + LITE_FILE + ". Put it in its own folder, for example \u201CQuiz Qrusher Lite\u201D, and open it from there.", "OK", null);
+      showToast("Downloaded " + LITE_FILE + ". Put it in its own folder, for example \u201CQuizQrusher Lite\u201D, and open it from there.", "OK", null);
       return LITE_FILE;
     }).catch(function(){
       showToast("Couldn't build the offline copy here. Open the hosted site to download it, or use lite.html from the same folder.", "OK", null);
@@ -2333,7 +2377,7 @@
       var v2 = null;
       try { v2 = decodeSaveCode(text); } catch (e){}
       if (v2) return importV2(v2, text);
-      if (ext === "txt") throw new Error("That .txt file doesn't contain a Quiz Qrusher resume code.");
+      if (ext === "txt") throw new Error("That .txt file doesn't contain a QuizQrusher resume code.");
       return findOrCreateBank(text, file.name).then(function(bank){
         importDone("Question bank “" + bank.name + "” is ready (" + plural(bank.questionCount, "question") + ").", bank, null);
       });
@@ -2776,7 +2820,7 @@
   }
   // Merges an Export all bundle: banks are matched by their CSV, and for each quiz the newer copy wins.
   function importBundle(obj){
-    if (typeof obj.version !== "number" || obj.version > SAVE_VERSION) throw new Error("That backup was made by a newer version of Quiz Qrusher. Update the app and try again.");
+    if (typeof obj.version !== "number" || obj.version > SAVE_VERSION) throw new Error("That backup was made by a newer version of QuizQrusher. Update the app and try again.");
     var banks = Array.isArray(obj.banks) ? obj.banks : [], atts = Array.isArray(obj.attempts) ? obj.attempts : [];
     var idMap = {}, n = { banks: 0, added: 0, updated: 0, kept: 0, skipped: 0 }, chain = Promise.resolve();
     banks.forEach(function(b){
@@ -2809,7 +2853,7 @@
   }
   function clearAll(){
     getAllBoth().then(function(r){
-      var msg = "Delete everything Quiz Qrusher keeps in this browser?\n\n" + plural(r[0].length, "question bank") + ", " + plural(r[1].length, "quiz", "quizzes") +
+      var msg = "Delete everything QuizQrusher keeps in this browser?\n\n" + plural(r[0].length, "question bank") + ", " + plural(r[1].length, "quiz", "quizzes") +
         ", and your settings.\n\nThis can't be undone. Use Export all first if you want a copy.";
       if (!window.confirm(msg)) return;
       timerPause(); clearTimeout(saveTimer); saveTimer = null; cur = null;
@@ -2880,6 +2924,63 @@
     "que_generator_v3.md": "## que_generator_v3.md\n\nRole:\nYou are an expert USMLE-style question writer.\n\nTask:\nYou will receive:\n1. slide_data.md\n2. question_styling.md\n\nYour job is to generate questions by EXECUTING the blueprint in question_styling.md.\n\nCore Principle:\n- Do not independently determine difficulty, scope, reasoning depth, vignette style, or distractor construction.\n- Follow the blueprint exactly.\n- Treat question_styling.md as the authoritative exam specification.\n\nRequirements:\n- Use only information from the lecture material.\n- Create exactly six answer choices (A-F).\n- Maintain a single best answer.\n- Randomize answer positions.\n- Generate at least 20 questions or the maximum supported by the content unless I specify otherwise.\n\nQuestion Construction Workflow:\n1. Identify concepts from lecture content.\n2. Match concepts to blueprint difficulty distribution.\n3. Apply blueprint reasoning requirements.\n4. Apply blueprint vignette requirements.\n5. Apply blueprint distractor requirements.\n6. Generate final questions.\n\nOutput Format:\nCSV columns:\nCategory, Question_Text, Option_1, Option_2, Option_3, Option_4, Option_5, Option_6, Correct_Option_Number\n\nFile name:\nquestion_input_[MMDDYYHH].csv\n"
   }; // generated from prompts/medical by test-data/harness/check_shared.py --sync
   /* === /PROMPTS === */
+  // v3.1 - the other premade prompt sets, picked from the dropdown at the top of Help
+  /* === PROMPTS:dental === */
+  var PROMPTS_DENTAL = {
+    "slide_miner.md": "# slide_miner.md (Dental school: [COURSE OR TOPIC])\n\n**Role:** You are an expert data-extraction AI specializing in dental school (DDS/DMD) curriculum analysis, working on course material for [COURSE OR TOPIC].\n\n**Task:** Parse the provided lecture slides and any transcripts or notes, then extract and structure their content for a downstream AI that will write practice questions. Your focus is strictly on extracting and organizing the material, not on writing the questions yourself.\n\n**Instructions:**\n1. **Identify Learning Objectives:** Extract any formal learning objectives, competencies, or study questions that state what the student is expected to understand or be able to do.\n2. **Concept Extraction:** Create a structured list of the major testable concepts.\n    * Extract the key anatomy (teeth, tooth surfaces, oral and head-and-neck structures), diseases and lesions, dental materials and their properties, procedures and techniques, drugs and local anesthetics, and diagnostic findings.\n    * Copy tooth numbers, measurements, doses, values, and classification systems exactly as the slides give them.\n    * Identify bolded, highlighted, or underlined slide material, and concepts the lecturer repeats or emphasizes in the transcript.\n    * Extract the data in major figures, radiographs, clinical photos, diagrams, and tables. Describe every image in words (what it shows, where, and what it indicates), because the downstream model cannot see it.\n3. **Data Formatting:** Structure the extracted data hierarchically. Group related etiologies, clinical and radiographic presentations, mechanisms, and treatments under their learning objectives, so the downstream model can follow cause-and-effect chains.\n4. **Constraints:** Do not omit complex material, but reduce it to easy-to-read bullet points. Use only what is in the provided materials.\n\n**Output Requirement:** Output the finalized, structured data as a markdown file named exactly `slide_data.md`. Wrap the entire output in a single markdown code block.\n",
+    "data_sanitizer.md": "# data_sanitizer.md (Dental school: [COURSE OR TOPIC])\n\n**Role:** You are an expert dental curriculum editor and data synthesizer.\n\n**Task:** You will receive three inputs: `slide_data.md` (the raw extracted concepts), the lecture transcripts or notes, and the official learning objectives for [COURSE OR TOPIC]. Your goal is to filter, refine, and clean this data so that only highly testable, objective-driven material remains, formatted for downstream question generation.\n\n**Instructions:**\n1. **Objective Alignment:** Cross-reference every concept in `slide_data.md` with the learning objectives. If a concept does not directly support or relate to a learning objective, remove it.\n2. **Transcript Integration:** Read the transcripts to identify what the lecturer emphasized. Make sure any clinical correlations, step-by-step procedures, material choices, or repeatedly emphasized points from the transcripts are explicitly added to their related concepts.\n3. **Clinical Reasoning Focus:** Board-style dental questions (INBDE) require multi-step reasoning. For every condition, material, procedure, or drug listed, make sure its etiology or mechanism, clinical and radiographic presentation, indications and contraindications, and management are clearly linked. Do not leave isolated facts; connect them logically.\n4. **Formatting:** Structure the output hierarchically. Group the cleaned data under its specific learning objectives. Under each objective, use bullet points to detail the critical concepts, mechanisms, clinical presentations, and treatment decisions.\n\n**Output Requirement:** Output the finalized, filtered data as a markdown file named exactly `slide_data(cleaned).md`. Wrap the entire output in a single markdown code block.\n",
+    "style_researcher.md": "## style_researcher.md (Dental school: [COURSE OR TOPIC])\n\nRole:\nYou are a dental assessment architect. Your purpose is NOT to write questions. Your purpose is to create a complete exam blueprint that another AI can immediately execute.\n\nTask:\nReview the requested topics in [COURSE OR TOPIC] and generate a file named question_styling.md that contains all stylistic, difficulty, reasoning, and scope requirements for question generation.\n\nGoals:\n1. Eliminate ambiguity for the downstream question generator.\n2. Pre-decide difficulty calibration.\n3. Pre-decide question scope.\n4. Pre-decide reasoning complexity.\n5. Reduce generator inference work and maximize generation speed.\n\nBefore generating the blueprint:\n- Ask the user for the topics in their current block of [COURSE OR TOPIC].\n- Ask which year of dental school they are in, if that isn't clear.\n- Ask for any professor-specific instructions or high-yield areas.\n\nCalibration Rules:\n\nAudience:\n- Dental student (DDS/DMD) taking [COURSE OR TOPIC].\n- Exam style: course exams written in the style of the Integrated National Board Dental Examination (INBDE), unless the user says otherwise.\n\nKnowledge Scope:\n- Only test concepts explicitly found in the uploaded lecture materials.\n- No outside diseases, materials, procedures, drugs, or anatomy unless directly included in the source content.\n\nDifficulty Framework:\n\nEasy (10-15%)\n- One-step application.\n- No pure recall.\n- Requires interpretation rather than memorization.\n\nModerate (50-60%)\n- Two-step reasoning.\n- Identify the finding → apply the principle.\n- Mechanism or material property → predict the clinical outcome.\n\nHard (25-35%)\n- Multi-step reasoning chains.\n- Clinical and radiographic findings → diagnosis → best management.\n- Patient factors (medical history, medications, age) → modified treatment decision.\n- Compare similar lesions, materials, or techniques and identify the distinguishing feature.\n\nQuestion Requirements:\n- No standalone fact-recall questions.\n- No definition questions.\n- No terminology identification questions.\n\nEvery question must require:\n1. Interpretation\n2. Reasoning\n3. Application\n\nPreferred reasoning chains:\n- Clinical finding → diagnosis\n- Etiology → pathogenesis → presentation\n- Material property → indication or failure mode\n- Anatomy → anesthesia, spread of infection, or surgical risk\n- Medical history or medication → change in dental management\n- Radiographic finding → interpretation → next step\n\nVignette Rules:\n- Use patient case vignettes (age, chief complaint, relevant medical and dental history, clinical and radiographic findings, tooth numbers) whenever clinically appropriate.\n- Otherwise use laboratory, materials-testing, histology, or anatomical scenarios.\n- Describe radiographs and clinical photos in words; never refer to an image the student cannot see.\n- Use the Universal Numbering System for teeth unless the course uses another system.\n\nDistractor Rules:\n- Distractors must be plausible.\n- Distractors should represent nearby concepts: adjacent teeth or structures, similar-looking lesions, competing materials or techniques, or reasonable but inferior treatment choices.\n- Avoid obviously incorrect answers.\n\nCourse Scope Protection:\n- Do not artificially force board-level complexity beyond what the course covers.\n- Complexity should arise from reasoning depth, not obscure facts.\n\nOutput Requirements:\nGenerate a file called question_styling.md containing:\n1. Audience description\n2. Allowed content scope\n3. Difficulty distribution\n4. Reasoning requirements\n5. Vignette requirements\n6. Distractor construction rules\n7. Prohibited question types\n8. Concept coverage priorities\n9. Any professor-specific directives\n\nThe output should function as a complete blueprint that allows a question generator to immediately write questions without independently deciding style, difficulty, or scope.\n",
+    "que_generator.md": "## que_generator.md (Dental school: [COURSE OR TOPIC])\n\nRole:\nYou are an expert INBDE-style question writer for [COURSE OR TOPIC].\n\nTask:\nYou will receive:\n1. slide_data.md (or slide_data(cleaned).md)\n2. question_styling.md\n\nYour job is to generate questions by EXECUTING the blueprint in question_styling.md.\n\nCore Principle:\n- Do not independently determine difficulty, scope, reasoning depth, vignette style, or distractor construction.\n- Follow the blueprint exactly.\n- Treat question_styling.md as the authoritative exam specification.\n\nRequirements:\n- Use only information from the lecture material.\n- Create exactly six answer choices.\n- Maintain a single best answer.\n- Randomize the position of the correct answer.\n- Refer to teeth by number as the blueprint specifies, and describe any radiograph or clinical photo in words.\n- Generate at least 20 questions, or as many as the content supports, unless I specify otherwise.\n\nQuestion Construction Workflow:\n1. Identify concepts from the lecture content.\n2. Match concepts to the blueprint difficulty distribution.\n3. Apply the blueprint reasoning requirements.\n4. Apply the blueprint vignette requirements.\n5. Apply the blueprint distractor requirements.\n6. Generate the final questions.\n\nOutput Format:\nA CSV file with exactly this header row:\nCategory,Question_Text,Option_1,Option_2,Option_3,Option_4,Option_5,Option_6,Correct_Option_Number\n- Category: a short topic name; results are grouped by it.\n- Correct_Option_Number: the number (1-6) of the correct option.\n- Put double quotes around any field that contains a comma.\n\nFile name:\nquestion_input_[MMDDYYHH].csv\n"
+  }; // generated from prompts/dental by test-data/harness/check_shared.py --sync
+  /* === /PROMPTS === */
+  /* === PROMPTS:premed === */
+  var PROMPTS_PREMED = {
+    "slide_miner.md": "# slide_miner.md (Pre-med: [COURSE OR TOPIC])\n\n**Role:** You are an expert data-extraction AI specializing in undergraduate pre-medical biology and chemistry, working on course material for [COURSE OR TOPIC].\n\n**Task:** Parse the provided lecture slides and any transcripts or notes, then extract and structure their content for a downstream AI that will write practice questions. Your focus is strictly on extracting and organizing the material, not on writing the questions yourself.\n\n**Instructions:**\n1. **Identify Learning Objectives:** Extract any formal learning objectives, competencies, or study questions that state what the student is expected to understand or be able to do.\n2. **Concept Extraction:** Create a structured list of the major testable concepts.\n    * Extract the key biological structures, processes, and pathways; chemical principles, reactions, and mechanisms; equations, constants, and units; and experimental methods and results.\n    * For each reaction, record the reactants, reagents and conditions, products, and any stereochemistry or regiochemistry the slides give.\n    * For each equation, record what every variable means and its units. For each worked example, record the given values, the steps, and the answer with units.\n    * Identify bolded, highlighted, or underlined slide material, and concepts the lecturer repeats or emphasizes in the transcript.\n    * Extract the data in major figures, graphs, diagrams, and tables. Describe every image in words (axes, units, trends, labeled parts), and write chemical structures as names or condensed formulas, because the downstream model cannot see them.\n3. **Data Formatting:** Structure the extracted data hierarchically. Group related processes, mechanisms, and their outcomes under their learning objectives, so the downstream model can follow cause-and-effect and step-by-step chains.\n4. **Constraints:** Do not omit complex material, but reduce it to easy-to-read bullet points. Use only what is in the provided materials.\n\n**Output Requirement:** Output the finalized, structured data as a markdown file named exactly `slide_data.md`. Wrap the entire output in a single markdown code block.\n",
+    "data_sanitizer.md": "# data_sanitizer.md (Pre-med: [COURSE OR TOPIC])\n\n**Role:** You are an expert biology and chemistry curriculum editor and data synthesizer.\n\n**Task:** You will receive three inputs: `slide_data.md` (the raw extracted concepts), the lecture transcripts or notes, and the official learning objectives for [COURSE OR TOPIC]. Your goal is to filter, refine, and clean this data so that only highly testable, objective-driven material remains, formatted for downstream question generation.\n\n**Instructions:**\n1. **Objective Alignment:** Cross-reference every concept in `slide_data.md` with the learning objectives. If a concept does not directly support or relate to a learning objective, remove it.\n2. **Transcript Integration:** Read the transcripts to identify what the lecturer emphasized. Make sure any step-by-step mechanisms, worked examples, experiments, or repeatedly emphasized points from the transcripts are explicitly added to their related concepts.\n3. **Reasoning Focus:** Pre-med course exams and the MCAT require multi-step reasoning. For every process, reaction, or principle listed, make sure its underlying mechanism, the conditions it depends on, and its outcomes are clearly linked. Keep each equation with its variable definitions, units, and a worked example. Do not leave isolated facts; connect them logically.\n4. **Formatting:** Structure the output hierarchically. Group the cleaned data under its specific learning objectives. Under each objective, use bullet points to detail the critical concepts, mechanisms, equations, and experimental evidence.\n\n**Output Requirement:** Output the finalized, filtered data as a markdown file named exactly `slide_data(cleaned).md`. Wrap the entire output in a single markdown code block.\n",
+    "style_researcher.md": "## style_researcher.md (Pre-med: [COURSE OR TOPIC])\n\nRole:\nYou are a science assessment architect for pre-medical biology and chemistry. Your purpose is NOT to write questions. Your purpose is to create a complete exam blueprint that another AI can immediately execute.\n\nTask:\nReview the requested topics in [COURSE OR TOPIC] and generate a file named question_styling.md that contains all stylistic, difficulty, reasoning, and scope requirements for question generation.\n\nGoals:\n1. Eliminate ambiguity for the downstream question generator.\n2. Pre-decide difficulty calibration.\n3. Pre-decide question scope.\n4. Pre-decide reasoning complexity.\n5. Reduce generator inference work and maximize generation speed.\n\nBefore generating the blueprint:\n- Ask the user for the topics in their current unit of [COURSE OR TOPIC].\n- Ask whether calculations are allowed on their exams, and whether a calculator is allowed.\n- Ask for any professor-specific instructions or high-yield areas.\n\nCalibration Rules:\n\nAudience:\n- Undergraduate pre-medical student taking [COURSE OR TOPIC].\n- Exam style: university course exams, using MCAT-style passage and experiment reasoning where the material allows.\n\nKnowledge Scope:\n- Only test concepts explicitly found in the uploaded course materials.\n- No outside pathways, reactions, compounds, equations, or experiments unless directly included in the source content.\n\nDifficulty Framework:\n\nEasy (10-15%)\n- One-step application.\n- No pure recall.\n- Requires interpretation rather than memorization.\n\nModerate (50-60%)\n- Two-step reasoning.\n- Identify the principle → apply it to a new case.\n- Mechanism → predict the outcome.\n\nHard (25-35%)\n- Multi-step reasoning chains.\n- Experimental data → mechanism → prediction for a new condition.\n- Calculations that combine two principles (for example stoichiometry with equilibrium, or genetics with probability).\n- Compare similar molecules, reactions, or processes and identify the distinguishing feature.\n\nQuestion Requirements:\n- No standalone fact-recall questions.\n- No definition questions.\n- No terminology identification questions.\n\nEvery question must require:\n1. Interpretation\n2. Reasoning\n3. Application\n\nPreferred reasoning chains:\n- Observation → mechanism\n- Experiment → result → conclusion\n- Change in conditions → shift in the system → outcome\n- Structure → property → reactivity or function\n- Reactants, reagents and conditions → mechanism → product\n- Data, graph, or table → interpretation → conclusion\n\nScenario Rules:\n- Use experimental, laboratory, or biological scenarios and short data passages whenever appropriate.\n- Give every value a calculation needs, with units.\n- Describe graphs, figures, and chemical structures in words or condensed formulas; never refer to an image the student cannot see.\n\nDistractor Rules:\n- Distractors must be plausible.\n- Distractors should represent related mechanisms, common misconceptions, reversed relationships, wrong stereochemistry or regiochemistry, or the results of plausible calculation errors (units, signs, stoichiometry, significant figures).\n- Avoid obviously incorrect answers.\n\nCourse Scope Protection:\n- Do not artificially force MCAT-level complexity beyond what the course covers.\n- Complexity should arise from reasoning depth, not obscure facts.\n\nOutput Requirements:\nGenerate a file called question_styling.md containing:\n1. Audience description\n2. Allowed content scope\n3. Difficulty distribution\n4. Reasoning requirements\n5. Scenario requirements\n6. Distractor construction rules\n7. Prohibited question types\n8. Concept coverage priorities\n9. Any professor-specific directives\n\nThe output should function as a complete blueprint that allows a question generator to immediately write questions without independently deciding style, difficulty, or scope.\n",
+    "que_generator.md": "## que_generator.md (Pre-med: [COURSE OR TOPIC])\n\nRole:\nYou are an expert writer of pre-medical biology and chemistry exam questions (course-exam and MCAT style) for [COURSE OR TOPIC].\n\nTask:\nYou will receive:\n1. slide_data.md (or slide_data(cleaned).md)\n2. question_styling.md\n\nYour job is to generate questions by EXECUTING the blueprint in question_styling.md.\n\nCore Principle:\n- Do not independently determine difficulty, scope, reasoning depth, scenario style, or distractor construction.\n- Follow the blueprint exactly.\n- Treat question_styling.md as the authoritative exam specification.\n\nRequirements:\n- Use only information from the course material.\n- Create exactly six answer choices.\n- Maintain a single best answer.\n- Randomize the position of the correct answer.\n- For every calculation question, solve it completely before writing the options, build each wrong option from a specific common error, give every numeric option the same units and rounding, and check that exactly one option is correct.\n- Write formulas and equations as plain text (for example H2O, Ka, ΔG = ΔH − TΔS, 3.2 × 10^-4 M), never LaTeX.\n- Generate at least 20 questions, or as many as the content supports, unless I specify otherwise.\n\nQuestion Construction Workflow:\n1. Identify concepts from the course content.\n2. Match concepts to the blueprint difficulty distribution.\n3. Apply the blueprint reasoning requirements.\n4. Apply the blueprint scenario requirements.\n5. Apply the blueprint distractor requirements.\n6. Generate the final questions.\n\nOutput Format:\nA CSV file with exactly this header row:\nCategory,Question_Text,Option_1,Option_2,Option_3,Option_4,Option_5,Option_6,Correct_Option_Number\n- Category: a short topic name; results are grouped by it.\n- Correct_Option_Number: the number (1-6) of the correct option.\n- Put double quotes around any field that contains a comma.\n\nFile name:\nquestion_input_[MMDDYYHH].csv\n"
+  }; // generated from prompts/premed by test-data/harness/check_shared.py --sync
+  /* === /PROMPTS === */
+  /* === PROMPTS:ee === */
+  var PROMPTS_EE = {
+    "slide_miner.md": "# slide_miner.md (Electrical engineering: [COURSE OR TOPIC])\n\n**Role:** You are an expert data-extraction AI specializing in undergraduate electrical engineering, working on course material for [COURSE OR TOPIC].\n\n**Task:** Parse the provided lecture slides and any transcripts or notes, then extract and structure their content for a downstream AI that will write practice questions. Your focus is strictly on extracting and organizing the material, not on writing the questions yourself.\n\n**Instructions:**\n1. **Identify Learning Objectives:** Extract any formal learning objectives, competencies, or study questions that state what the student is expected to understand or be able to do.\n2. **Concept Extraction:** Create a structured list of the major testable concepts.\n    * Extract the key laws and governing equations, circuit and system models, component behavior, design methods and rules of thumb, sign conventions, units, and typical values.\n    * For each equation, record what every variable means, its units, and the assumptions or conditions it needs (for example ideal op-amp, DC steady state, small-signal, sinusoidal steady state).\n    * For each worked example, record the given values, the solution steps, and the final answer with units.\n    * Identify bolded, highlighted, or underlined slide material, and concepts the lecturer repeats or emphasizes in the transcript.\n    * Extract the data in major figures, schematics, plots, and tables. The downstream model cannot see images, so describe them in words: write each schematic as a netlist (every component, its value, and the two nodes it connects, plus sources and the reference node), and describe plots, waveforms, Bode plots, block diagrams, truth tables, and timing diagrams by their axes, units, and key points.\n3. **Data Formatting:** Structure the extracted data hierarchically. Group related principles, governing equations, assumptions, and applications under their learning objectives, so the downstream model can follow step-by-step analysis chains.\n4. **Constraints:** Do not omit complex material, but reduce it to easy-to-read bullet points. Use only what is in the provided materials.\n\n**Output Requirement:** Output the finalized, structured data as a markdown file named exactly `slide_data.md`. Wrap the entire output in a single markdown code block.\n",
+    "data_sanitizer.md": "# data_sanitizer.md (Electrical engineering: [COURSE OR TOPIC])\n\n**Role:** You are an expert electrical engineering curriculum editor and data synthesizer.\n\n**Task:** You will receive three inputs: `slide_data.md` (the raw extracted concepts), the lecture transcripts or notes, and the official learning objectives for [COURSE OR TOPIC]. Your goal is to filter, refine, and clean this data so that only highly testable, objective-driven material remains, formatted for downstream question generation.\n\n**Instructions:**\n1. **Objective Alignment:** Cross-reference every concept in `slide_data.md` with the learning objectives. If a concept does not directly support or relate to a learning objective, remove it.\n2. **Transcript Integration:** Read the transcripts to identify what the lecturer emphasized. Make sure any worked examples, derivations, design rules, sign conventions, or repeatedly emphasized points from the transcripts are explicitly added to their related concepts.\n3. **Reasoning Focus:** Engineering exam problems (including FE-style problems) require multi-step analysis. For every principle, circuit, or method listed, make sure its governing equation, assumptions and limits, units, and practical consequences are clearly linked. Keep the netlist descriptions of schematics intact. Do not leave isolated facts; connect them logically.\n4. **Formatting:** Structure the output hierarchically. Group the cleaned data under its specific learning objectives. Under each objective, use bullet points to detail the critical concepts, governing equations, assumptions, and worked examples.\n\n**Output Requirement:** Output the finalized, filtered data as a markdown file named exactly `slide_data(cleaned).md`. Wrap the entire output in a single markdown code block.\n",
+    "style_researcher.md": "## style_researcher.md (Electrical engineering: [COURSE OR TOPIC])\n\nRole:\nYou are an electrical engineering assessment architect. Your purpose is NOT to write questions. Your purpose is to create a complete exam blueprint that another AI can immediately execute.\n\nTask:\nReview the requested topics in [COURSE OR TOPIC] and generate a file named question_styling.md that contains all stylistic, difficulty, reasoning, and scope requirements for question generation.\n\nGoals:\n1. Eliminate ambiguity for the downstream question generator.\n2. Pre-decide difficulty calibration.\n3. Pre-decide question scope.\n4. Pre-decide reasoning complexity.\n5. Reduce generator inference work and maximize generation speed.\n\nBefore generating the blueprint:\n- Ask the user for the topics in their current unit of [COURSE OR TOPIC].\n- Ask whether their exams allow a calculator and a formula sheet, and roughly how long each problem should take.\n- Ask for any professor-specific instructions or high-yield areas.\n\nCalibration Rules:\n\nAudience:\n- Undergraduate electrical engineering student taking [COURSE OR TOPIC].\n- Exam style: university course exams, using FE Electrical and Computer-style problems where the material allows.\n\nKnowledge Scope:\n- Only test concepts explicitly found in the uploaded course materials.\n- No outside theories, equations, components, standards, or methods unless directly included in the source content.\n\nDifficulty Framework:\n\nEasy (10-15%)\n- One-step application of a single law or equation to given values.\n- No pure recall.\n- Requires interpretation rather than memorization.\n\nModerate (50-60%)\n- Two-step reasoning.\n- Identify the right model or equation → compute the result.\n- Change in a parameter → predict the change in behavior.\n\nHard (25-35%)\n- Multi-step analysis chains.\n- Simplify the circuit or system → solve → interpret the result.\n- Design to a specification under constraints, or compare alternative designs and pick the best one.\n- Compare similar configurations or methods and identify the distinguishing feature.\n\nQuestion Requirements:\n- No standalone fact-recall questions.\n- No definition questions.\n- No terminology identification questions.\n\nEvery question must require:\n1. Interpretation\n2. Reasoning\n3. Application\n\nPreferred reasoning chains:\n- Given circuit → governing law (KVL, KCL, Ohm's law, Thevenin/Norton, superposition) → computed quantity\n- Change in a parameter → predicted change in gain, cutoff frequency, time constant, power, or efficiency\n- Input signal → system response (transient, steady state, or frequency response)\n- Specification → design choice → resulting performance\n- Observed symptom (unexpected reading or waveform) → cause → fix\n- Logic function or state diagram → circuit behavior or output sequence\n\nScenario Rules:\n- Use realistic analysis, design, measurement, or troubleshooting scenarios with every value and unit the problem needs.\n- Describe any circuit in words: each component, its value, and how it connects. Describe plots and waveforms by their axes and key points. Never refer to an image the student cannot see.\n- Keep each calculation solvable by hand with a calculator in a few minutes.\n\nDistractor Rules:\n- Distractors must be plausible.\n- Distractors should be the results of common errors: sign-convention mistakes, rms versus peak values, a missing factor of 2 or 2π, series and parallel mix-ups, unit-prefix errors (m versus μ, k versus M), the wrong reference node, or a formula that doesn't fit the configuration.\n- Avoid obviously incorrect answers.\n\nCourse Scope Protection:\n- Do not artificially force complexity beyond what the course covers.\n- Complexity should arise from reasoning depth, not obscure facts.\n\nOutput Requirements:\nGenerate a file called question_styling.md containing:\n1. Audience description\n2. Allowed content scope\n3. Difficulty distribution\n4. Reasoning requirements\n5. Scenario requirements\n6. Distractor construction rules\n7. Prohibited question types\n8. Concept coverage priorities\n9. Any professor-specific directives\n\nThe output should function as a complete blueprint that allows a question generator to immediately write questions without independently deciding style, difficulty, or scope.\n",
+    "que_generator.md": "## que_generator.md (Electrical engineering: [COURSE OR TOPIC])\n\nRole:\nYou are an expert FE-style electrical engineering question writer for [COURSE OR TOPIC].\n\nTask:\nYou will receive:\n1. slide_data.md (or slide_data(cleaned).md)\n2. question_styling.md\n\nYour job is to generate questions by EXECUTING the blueprint in question_styling.md.\n\nCore Principle:\n- Do not independently determine difficulty, scope, reasoning depth, scenario style, or distractor construction.\n- Follow the blueprint exactly.\n- Treat question_styling.md as the authoritative exam specification.\n\nRequirements:\n- Use only information from the course material.\n- Create exactly six answer choices.\n- Maintain a single best answer.\n- Randomize the position of the correct answer.\n- For every calculation question, solve it completely before writing the options, build each wrong option from a specific common error, give every numeric option the same units and rounding, and check that exactly one option is correct.\n- Describe any circuit in words (each component, its value, and how it connects).\n- Write math as plain text with Unicode symbols (for example Ω, μ, π, √, °, ², ∠), never LaTeX.\n- Generate at least 20 questions, or as many as the content supports, unless I specify otherwise.\n\nQuestion Construction Workflow:\n1. Identify concepts from the course content.\n2. Match concepts to the blueprint difficulty distribution.\n3. Apply the blueprint reasoning requirements.\n4. Apply the blueprint scenario requirements.\n5. Apply the blueprint distractor requirements.\n6. Generate the final questions.\n\nOutput Format:\nA CSV file with exactly this header row:\nCategory,Question_Text,Option_1,Option_2,Option_3,Option_4,Option_5,Option_6,Correct_Option_Number\n- Category: a short topic name; results are grouped by it.\n- Correct_Option_Number: the number (1-6) of the correct option.\n- Put double quotes around any field that contains a comma.\n\nFile name:\nquestion_input_[MMDDYYHH].csv\n"
+  }; // generated from prompts/ee by test-data/harness/check_shared.py --sync
+  /* === /PROMPTS === */
+  /* === PROMPTS:me === */
+  var PROMPTS_ME = {
+    "slide_miner.md": "# slide_miner.md (Mechanical engineering: [COURSE OR TOPIC])\n\n**Role:** You are an expert data-extraction AI specializing in undergraduate mechanical engineering, working on course material for [COURSE OR TOPIC].\n\n**Task:** Parse the provided lecture slides and any transcripts or notes, then extract and structure their content for a downstream AI that will write practice questions. Your focus is strictly on extracting and organizing the material, not on writing the questions yourself.\n\n**Instructions:**\n1. **Identify Learning Objectives:** Extract any formal learning objectives, competencies, or study questions that state what the student is expected to understand or be able to do.\n2. **Concept Extraction:** Create a structured list of the major testable concepts.\n    * Extract the key governing equations (equilibrium, Newton's laws, energy and momentum balances, stress-strain relations, the laws of thermodynamics, fluid and heat-transfer relations), material and fluid properties, models and their assumptions, design methods, sign conventions, and units.\n    * For each equation, record what every variable means, its units (SI and US customary as the slides use them), and the assumptions it needs (for example steady flow, ideal gas, linear elastic, rigid body).\n    * For each worked example, record the given values, the solution steps, and the final answer with units. Note any property-table values the example uses.\n    * Identify bolded, highlighted, or underlined slide material, and concepts the lecturer repeats or emphasizes in the transcript.\n    * Extract the data in major figures, diagrams, plots, and tables. The downstream model cannot see images, so describe them in words: free-body diagrams (each force, its direction, magnitude, and point of application, plus dimensions), beams with their supports and loads, mechanisms, control volumes, P-v and T-s diagrams, cycles, and plotted curves by their axes, units, and key points.\n3. **Data Formatting:** Structure the extracted data hierarchically. Group related principles, governing equations, assumptions, and applications under their learning objectives, so the downstream model can follow step-by-step analysis chains.\n4. **Constraints:** Do not omit complex material, but reduce it to easy-to-read bullet points. Use only what is in the provided materials.\n\n**Output Requirement:** Output the finalized, structured data as a markdown file named exactly `slide_data.md`. Wrap the entire output in a single markdown code block.\n",
+    "data_sanitizer.md": "# data_sanitizer.md (Mechanical engineering: [COURSE OR TOPIC])\n\n**Role:** You are an expert mechanical engineering curriculum editor and data synthesizer.\n\n**Task:** You will receive three inputs: `slide_data.md` (the raw extracted concepts), the lecture transcripts or notes, and the official learning objectives for [COURSE OR TOPIC]. Your goal is to filter, refine, and clean this data so that only highly testable, objective-driven material remains, formatted for downstream question generation.\n\n**Instructions:**\n1. **Objective Alignment:** Cross-reference every concept in `slide_data.md` with the learning objectives. If a concept does not directly support or relate to a learning objective, remove it.\n2. **Transcript Integration:** Read the transcripts to identify what the lecturer emphasized. Make sure any worked examples, derivations, design rules, sign conventions, or repeatedly emphasized points from the transcripts are explicitly added to their related concepts.\n3. **Reasoning Focus:** Engineering exam problems (including FE-style problems) require multi-step analysis. For every principle, system, or method listed, make sure its governing equation, assumptions and limits, units, and practical consequences are clearly linked. Keep the word descriptions of diagrams intact. Do not leave isolated facts; connect them logically.\n4. **Formatting:** Structure the output hierarchically. Group the cleaned data under its specific learning objectives. Under each objective, use bullet points to detail the critical concepts, governing equations, assumptions, and worked examples.\n\n**Output Requirement:** Output the finalized, filtered data as a markdown file named exactly `slide_data(cleaned).md`. Wrap the entire output in a single markdown code block.\n",
+    "style_researcher.md": "## style_researcher.md (Mechanical engineering: [COURSE OR TOPIC])\n\nRole:\nYou are a mechanical engineering assessment architect. Your purpose is NOT to write questions. Your purpose is to create a complete exam blueprint that another AI can immediately execute.\n\nTask:\nReview the requested topics in [COURSE OR TOPIC] and generate a file named question_styling.md that contains all stylistic, difficulty, reasoning, and scope requirements for question generation.\n\nGoals:\n1. Eliminate ambiguity for the downstream question generator.\n2. Pre-decide difficulty calibration.\n3. Pre-decide question scope.\n4. Pre-decide reasoning complexity.\n5. Reduce generator inference work and maximize generation speed.\n\nBefore generating the blueprint:\n- Ask the user for the topics in their current unit of [COURSE OR TOPIC].\n- Ask whether their exams allow a calculator, a formula sheet, and property tables, and roughly how long each problem should take.\n- Ask for any professor-specific instructions or high-yield areas.\n\nCalibration Rules:\n\nAudience:\n- Undergraduate mechanical engineering student taking [COURSE OR TOPIC].\n- Exam style: university course exams, using FE Mechanical-style problems where the material allows.\n\nKnowledge Scope:\n- Only test concepts explicitly found in the uploaded course materials.\n- No outside theories, equations, materials, standards, or methods unless directly included in the source content.\n\nDifficulty Framework:\n\nEasy (10-15%)\n- One-step application of a single principle or equation to given values.\n- No pure recall.\n- Requires interpretation rather than memorization.\n\nModerate (50-60%)\n- Two-step reasoning.\n- Draw the free-body diagram or control volume → apply the governing equation.\n- Change in a parameter → predict the change in behavior.\n\nHard (25-35%)\n- Multi-step analysis chains.\n- System → model and assumptions → solve in several steps → check the result (for example against a failure criterion or a factor of safety).\n- Design to a requirement under constraints, or compare alternative designs and pick the best one.\n- Compare similar configurations, processes, or methods and identify the distinguishing feature.\n\nQuestion Requirements:\n- No standalone fact-recall questions.\n- No definition questions.\n- No terminology identification questions.\n\nEvery question must require:\n1. Interpretation\n2. Reasoning\n3. Application\n\nPreferred reasoning chains:\n- Given system → free-body diagram or control volume → governing equation → calculated result\n- Loading and geometry → stress state → failure check or factor of safety\n- Process path → state properties → work and heat transfer\n- Change in a parameter → predicted change in stress, deflection, efficiency, pressure drop, or heat rate\n- Design requirement → design choice → resulting performance\n- Observed failure or symptom → cause → fix\n\nScenario Rules:\n- Use realistic analysis, design, or troubleshooting scenarios with every value and unit the problem needs.\n- Describe diagrams in words (supports, loads, directions, dimensions, and the process or cycle). Never refer to an image the student cannot see.\n- When a problem needs property-table data, give the property values in the question instead of requiring a table lookup.\n- Keep each calculation solvable by hand with a calculator in a few minutes.\n\nDistractor Rules:\n- Distractors must be plausible.\n- Distractors should be the results of common errors: sign or direction mistakes, unit-conversion errors (SI versus US customary, kPa versus Pa, lbf versus lbm), gauge versus absolute pressure, °C versus K, the wrong moment arm, a missing term in an energy balance, or a formula that doesn't fit the case.\n- Avoid obviously incorrect answers.\n\nCourse Scope Protection:\n- Do not artificially force complexity beyond what the course covers.\n- Complexity should arise from reasoning depth, not obscure facts.\n\nOutput Requirements:\nGenerate a file called question_styling.md containing:\n1. Audience description\n2. Allowed content scope\n3. Difficulty distribution\n4. Reasoning requirements\n5. Scenario requirements\n6. Distractor construction rules\n7. Prohibited question types\n8. Concept coverage priorities\n9. Any professor-specific directives\n\nThe output should function as a complete blueprint that allows a question generator to immediately write questions without independently deciding style, difficulty, or scope.\n",
+    "que_generator.md": "## que_generator.md (Mechanical engineering: [COURSE OR TOPIC])\n\nRole:\nYou are an expert FE-style mechanical engineering question writer for [COURSE OR TOPIC].\n\nTask:\nYou will receive:\n1. slide_data.md (or slide_data(cleaned).md)\n2. question_styling.md\n\nYour job is to generate questions by EXECUTING the blueprint in question_styling.md.\n\nCore Principle:\n- Do not independently determine difficulty, scope, reasoning depth, scenario style, or distractor construction.\n- Follow the blueprint exactly.\n- Treat question_styling.md as the authoritative exam specification.\n\nRequirements:\n- Use only information from the course material.\n- Create exactly six answer choices.\n- Maintain a single best answer.\n- Randomize the position of the correct answer.\n- For every calculation question, solve it completely before writing the options, build each wrong option from a specific common error, give every numeric option the same units and rounding, and check that exactly one option is correct.\n- Describe any diagram in words (supports, loads, directions, and dimensions).\n- Write math as plain text with Unicode symbols (for example σ, τ, ε, Δ, η, ρ, π, °, ², ³), never LaTeX.\n- Generate at least 20 questions, or as many as the content supports, unless I specify otherwise.\n\nQuestion Construction Workflow:\n1. Identify concepts from the course content.\n2. Match concepts to the blueprint difficulty distribution.\n3. Apply the blueprint reasoning requirements.\n4. Apply the blueprint scenario requirements.\n5. Apply the blueprint distractor requirements.\n6. Generate the final questions.\n\nOutput Format:\nA CSV file with exactly this header row:\nCategory,Question_Text,Option_1,Option_2,Option_3,Option_4,Option_5,Option_6,Correct_Option_Number\n- Category: a short topic name; results are grouped by it.\n- Correct_Option_Number: the number (1-6) of the correct option.\n- Put double quotes around any field that contains a comma.\n\nFile name:\nquestion_input_[MMDDYYHH].csv\n"
+  }; // generated from prompts/me by test-data/harness/check_shared.py --sync
+  /* === /PROMPTS === */
+  var PROMPT_BLANK = "[COURSE OR TOPIC]";   // filled in from Help's "Your class or topic" box
+  var SET_FILES = { miner: "slide_miner.md", sanitizer: "data_sanitizer.md", style: "style_researcher.md", generator: "que_generator.md" };
+  var PROMPT_SETS = {
+    medical: { name: "Medical school (MD/DO)", prompts: PROMPTS,
+               files: { miner: "slide_miner_v1.md", sanitizer: "data_sanitizer_v2.md", style: "style_researcher_v2.md", generator: "que_generator_v3.md" } },
+    dental: { name: "Dental school (DDS/DMD)", prompts: PROMPTS_DENTAL, files: SET_FILES, example: "e.g. Oral Pathology, Dental Materials" },
+    premed: { name: "Pre-med (biology and chemistry)", prompts: PROMPTS_PREMED, files: SET_FILES, example: "e.g. Organic Chemistry II, Cell Biology" },
+    ee: { name: "Electrical engineering", prompts: PROMPTS_EE, files: SET_FILES, example: "e.g. Circuits II, Signals and Systems" },
+    me: { name: "Mechanical engineering", prompts: PROMPTS_ME, files: SET_FILES, example: "e.g. Thermodynamics, Statics" }
+  };
+  var PSTEPS = ["miner", "sanitizer", "style", "generator"];
+  function psetRead(){
+    var s = {};
+    try { s = JSON.parse(localStorage.getItem(NS + "promptSet")) || {}; } catch (e){}
+    return { set: PROMPT_SETS[s.set] ? s.set : "medical", course: typeof s.course === "string" ? s.course : "" };
+  }
+  var pset = psetRead();
+  function psetSave(){ try { localStorage.setItem(NS + "promptSet", JSON.stringify(pset)); } catch (e){} }
+  function psetHasBlank(key){ var p = PROMPT_SETS[key].prompts; return Object.keys(p).some(function(k){ return p[k].indexOf(PROMPT_BLANK) >= 0; }); }
+  function psetText(step){
+    var s = PROMPT_SETS[pset.set], t = s.prompts[s.files[step]] || "", c = pset.course.trim();
+    return c ? t.split(PROMPT_BLANK).join(c) : t;
+  }
+  function psetFile(step){ var f = PROMPT_SETS[pset.set].files[step]; return pset.set === "medical" ? f : pset.set + "_" + f; }
   function copyText(text){
     if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text).catch(function(){ return copyFallback(text); });
     return Promise.resolve(copyFallback(text));
@@ -2909,13 +3010,45 @@
     card.appendChild(top); card.appendChild(det);
     return { card: card, pre: pre };
   }
-  function renderPrompts(){
-    Array.prototype.forEach.call(document.querySelectorAll(".promptslot"), function(slot){
-      if (slot.childNodes.length) return;
-      var name = slot.getAttribute("data-prompt"), text = PROMPTS[name];
-      if (!text) return;
-      slot.appendChild(makePromptCard(name, function(){ return text; }).card);
+  var psetCards = null;   // step -> its prompt card in Help, once built //v3.1
+  function renderPrompts(){ //v3.1 - shows the prompt set picked at the top of Help (was: the medical set only)
+    if (!psetCards){
+      psetCards = {};
+      Array.prototype.forEach.call(document.querySelectorAll(".promptslot"), function(slot){
+        var step = slot.getAttribute("data-step");
+        var c = makePromptCard(psetFile(step), function(){ return psetText(step); }, function(){ return psetFile(step); });
+        slot.appendChild(c.card);
+        psetCards[step] = c;
+      });
+    }
+    var s = PROMPT_SETS[pset.set], blank = psetHasBlank(pset.set);
+    el("psetSelect").value = pset.set;
+    el("psetCourseField").classList.toggle("hidden", !blank);
+    el("psetBlankNote").classList.toggle("hidden", !blank);
+    if (el("psetCourse").value !== pset.course) el("psetCourse").value = pset.course;
+    el("psetCourse").placeholder = s.example || "";
+    PSTEPS.forEach(function(step){
+      var c = psetCards[step], name = psetFile(step);
+      if (!c) return;
+      c.card.querySelector(".pname").textContent = name;
+      var b = c.card.querySelectorAll(".ptop button");
+      b[0].setAttribute("aria-label", "Copy " + name); b[1].setAttribute("aria-label", "Download " + name);
+      c.pre.textContent = psetText(step);
     });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pfile]"), function(x){ x.textContent = psetFile(x.getAttribute("data-pfile")); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-psetname]"), function(x){ x.textContent = s.name; });
+    el("downloadPromptsBtn").title = "The " + s.name + " prompts as a .zip. Pick another set at the top of Help.";
+  }
+  function setupPromptSets(){ //v3.1
+    var sel = el("psetSelect");
+    Object.keys(PROMPT_SETS).forEach(function(k){ var o = document.createElement("option"); o.value = k; o.textContent = PROMPT_SETS[k].name; sel.appendChild(o); });
+    sel.addEventListener("change", function(){ pset.set = sel.value; psetSave(); renderPrompts(); });
+    el("psetCourse").addEventListener("input", function(){ pset.course = this.value; psetSave(); renderPrompts(); });
+    el("downloadPromptsBtn").addEventListener("click", function(){
+      var key = pset.set, files = PROMPT_SETS[key].files;
+      download(zipStore(PSTEPS.map(function(st){ return { name: key + "_prompts/" + files[st], text: psetText(st) }; })), key + "_prompts.zip", "application/zip");
+    });
+    renderPrompts();
   }
   /* ---------- Prompt Builder ---------- */ //v3.0 - Phase 9
   /* === PROMPTS:templates === */
@@ -3147,6 +3280,34 @@
     if (t) t.scrollIntoView();
   }
 
+  /* ---------- App switcher ---------- */ //v3.1 - replaces v3.0.2's "<" link: a menu of the study apps, with Home last
+  // Only on the hosted site: the other apps and the homepage are sibling folders there, and don't exist next to a file on disk.
+  function setupAppSwitch(){
+    if (!/^https?:$/.test(location.protocol)) return;
+    var wrap = el("appSwitch"), btn = el("appSwitchBtn"), menu = el("appSwitchMenu");
+    var items = function(){ return Array.prototype.slice.call(menu.querySelectorAll("a")); };
+    var setOpen = function(on, focusFirst){
+      menu.classList.toggle("hidden", !on);
+      btn.setAttribute("aria-expanded", on ? "true" : "false");
+      if (on && focusFirst) items()[0].focus();
+    };
+    wrap.classList.remove("hidden");
+    btn.addEventListener("click", function(){ setOpen(menu.classList.contains("hidden"), false); });
+    btn.addEventListener("keydown", function(e){
+      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " "){ e.preventDefault(); setOpen(true, true); }
+    });
+    menu.addEventListener("keydown", function(e){
+      var list = items(), i = list.indexOf(document.activeElement);
+      if (e.key === "ArrowDown"){ e.preventDefault(); list[(i + 1) % list.length].focus(); }
+      else if (e.key === "ArrowUp"){ e.preventDefault(); list[(i - 1 + list.length) % list.length].focus(); }
+      else if (e.key === "Home"){ e.preventDefault(); list[0].focus(); }
+      else if (e.key === "End"){ e.preventDefault(); list[list.length - 1].focus(); }
+      else if (e.key === "Escape"){ e.preventDefault(); setOpen(false); btn.focus(); }
+      else if (e.key === "Tab") setOpen(false);
+    });
+    document.addEventListener("click", function(e){ if (!wrap.contains(e.target)) setOpen(false); });
+  }
+
   /* ---------- Feedback ---------- */ //v3.0 - Phase 7
   var FEEDBACK_EMBED = "https://docs.google.com/forms/d/e/1FAIpQLSdas9u7aNVOe7Oael27TN0RIwML9J9-DSwLZ6Yr3QYeg5IjtA/viewform?embedded=true";
   function envLine(){
@@ -3156,7 +3317,7 @@
     else if ((m = ua.match(/Chrome\/(\d+)/))) b = "Chrome " + m[1];
     else if ((m = ua.match(/Version\/(\d+).*Safari/))) b = "Safari " + m[1];
     var os = /Windows/.test(ua) ? "Windows" : /iPhone|iPad/.test(ua) ? "iOS" : /Mac OS X/.test(ua) ? "macOS" : /Android/.test(ua) ? "Android" : /Linux/.test(ua) ? "Linux" : "";
-    return "Quiz Qrusher " + APP_VERSION + " \u00B7 " + b + (os ? " on " + os : "");
+    return "QuizQrusher " + APP_VERSION + " \u00B7 " + b + (os ? " on " + os : "");
   }
   function openFeedback(){
     el("envInfo").textContent = envLine();
@@ -3182,7 +3343,7 @@
       setInterval(function(){ reg.update().catch(function(){}); }, 3600000);
     }).catch(function(){});
   }
-  function offerUpdate(){ showToast("A new version of Quiz Qrusher is ready.", "Reload", applyUpdate, "update"); }
+  function offerUpdate(){ showToast("A new version of QuizQrusher is ready.", "Reload", applyUpdate, "update"); }
   function applyUpdate(){
     if (!swReg || !swReg.waiting){ location.reload(); return; }
     var waiting = swReg.waiting;
@@ -3279,6 +3440,7 @@
     b.addEventListener("click", function(){ helpJump(b.getAttribute("data-helpjump")); });
   });
   setupBuilder(); //v3.0 - Phase 9
+  setupPromptSets(); //v3.1
   el("helpTemplateBtn").addEventListener("click", function(){ download(templateCsv(), "quiz_template.csv", "text/csv"); });
   el("helpOpenLiteBtn").addEventListener("click", function(){ location.href = "lite.html"; });
   el("copyEnvBtn").addEventListener("click", function(){ var b = el("copyEnvBtn"); copyText(envLine()).then(function(){ flash(b, "Copied"); }); });
@@ -3294,7 +3456,7 @@
 
   /* ---------- Startup ---------- */ //v3.0
   el("appVersion").textContent = APP_VERSION;
-  if (/^https?:$/.test(location.protocol)) el("homeBack").classList.remove("hidden"); //v3.0.2 - the homepage only exists on the site
+  setupAppSwitch(); //v3.1 - was v3.0.2's "<" link to the homepage
   maybeShowBrowserNotice(); //v3.0
   setupServiceWorker();     //v3.0 - Phase 8
   openStore().then(function(s){

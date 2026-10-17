@@ -103,7 +103,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     const exp = captured[captured.length - 1];
     check("export name", /^qus_input_25_progress_\d{8}\.json$/.test(exp.name), exp.name);
     const expJson = JSON.parse(await (await fetch(exp.href)).text());
-    check("export format", expJson.format === "quiz-qrusher-save" && expJson.version === 3 && expJson.app === "3.0.2");
+    check("export format", expJson.format === "quiz-qrusher-save" && expJson.version === 3 && expJson.app === "3.1.0");
     check("export embeds csv", expJson.bank.csvText === csv25 && expJson.bank.csvHash === 634952293, expJson.bank.csvHash);
     check("export attempt fields", expJson.attempt.answers.filter(x => x !== null).length === 2 && expJson.attempt.flags[2] === 1 && expJson.attempt.notes === "my notes ü ✓" && expJson.attempt.revealed.length === 25 && !("bankId" in expJson.attempt));
     check("v301 export struck", expJson.attempt.struck.length === 25 && expJson.attempt.struck[3].join() === String(struckVal) && expJson.attempt.struck[5].length === 0, JSON.stringify(expJson.attempt.struck.slice(0, 6)));
@@ -199,9 +199,9 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     await setFile("importInput", "qus_input_5.csv", await getText("../csv/qus_input_5.csv"), "text/csv"); await sleep(400);
     check("csv import", txt("importDone").indexOf("Question bank “qus_input_5” is ready (5 questions)") === 0, txt("importDone") + " / " + txt("importError"));
     await setFile("importInput", "junk.txt", "hello world"); await sleep(300);
-    check("junk txt error", txt("importError") === "That .txt file doesn't contain a Quiz Qrusher resume code.", txt("importError"));
+    check("junk txt error", txt("importError") === "That .txt file doesn't contain a QuizQrusher resume code.", txt("importError"));
     await setFile("importInput", "x.json", '{"a":1}', "application/json"); await sleep(300);
-    check("wrong json error", txt("importError") === "That JSON file isn't a Quiz Qrusher backup.", txt("importError"));
+    check("wrong json error", txt("importError") === "That JSON file isn't a QuizQrusher backup.", txt("importError"));
     await setFile("importInput", "new.json", JSON.stringify(Object.assign({}, expJson, { version: 4 })), "application/json"); await sleep(300);
     check("newer version error", txt("importError").indexOf("newer version") > 0, txt("importError"));
 
@@ -502,7 +502,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     D.querySelectorAll(".qblock")[2].querySelectorAll(".ostrike")[1].click(); // v3.0.1 - strike
     $("noteText").value = "lite notes"; $("noteText").dispatchEvent(new W.Event("input", { bubbles: true })); await sleep(900);
     let liteCur = JSON.parse(W.localStorage.getItem("quizQrusher:lite:current") || "null");
-    check("l6 autosave", liteCur && liteCur.format === "quiz-qrusher-save" && liteCur.attempt.answers.filter(a => a !== null).length === 1 && liteCur.attempt.notes === "lite notes" && liteCur.attempt.flags[1] === 1 && liteCur.attempt.answers[2] === null && liteCur.attempt.struck[2].length === 1 && liteCur.app === "3.0.2");
+    check("l6 autosave", liteCur && liteCur.format === "quiz-qrusher-save" && liteCur.attempt.answers.filter(a => a !== null).length === 1 && liteCur.attempt.notes === "lite notes" && liteCur.attempt.flags[1] === 1 && liteCur.attempt.answers[2] === null && liteCur.attempt.struck[2].length === 1 && liteCur.app === "3.1.0");
     check("l6 status check only", $("saveStatus").querySelector(".ic").textContent === "✓" && W.getComputedStyle($("saveStatus").querySelector(".lbl")).display === "none");
     const liteQ1 = D.querySelectorAll(".qblock")[0].querySelector(".qtext").textContent;
     click(D.querySelector('.quizbar [data-go="home"]')); await sleep(300);
@@ -606,8 +606,17 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     // ======== Phase 7: Home links, Help (prompts), Feedback, no email anywhere ========
     click(D.querySelector('.tab[data-tab="home"]')); await sleep(300);
     check("p7 lite button", $("openLiteBtn").getAttribute("href") === "lite.html");
-    const zipRes = await fetch(new URL($("downloadPromptsBtn").getAttribute("href"), W.location.href));
-    check("p7 prompts zip", $("downloadPromptsBtn").hasAttribute("download") && zipRes.ok && (await zipRes.arrayBuffer()).byteLength > 1000);
+    click("downloadPromptsBtn"); await sleep(100);   // v3.1 - built in the page from the prompt set picked in Help (medical by default)
+    const pz = captured[captured.length - 1], pzb = new Uint8Array(await (await fetch(pz.href)).arrayBuffer());
+    check("p7 prompts zip", pz.name === "medical_prompts.zip" && pzb.byteLength > 1000 && new DataView(pzb.buffer).getUint16(pzb.length - 12, true) === 4, pz.name + " " + pzb.byteLength);
+    // v3.1 - app switcher (the harness runs over http, so it shows)
+    check("v31 switcher shown", !$("appSwitch").classList.contains("hidden") && $("appSwitchMenu").classList.contains("hidden"));
+    click("appSwitchBtn"); await sleep(50);
+    const swLinks = [...$("appSwitchMenu").querySelectorAll("a")].map(a => a.getAttribute("href"));
+    check("v31 switcher menu", !$("appSwitchMenu").classList.contains("hidden") && $("appSwitchBtn").getAttribute("aria-expanded") === "true" && swLinks.join() === "../Quiz_Qrusher/,../Class_Base/,../CwikCard/,../" && $("appSwitchMenu").querySelector('[aria-current="page"]').textContent === "QuizQrusher", swLinks.join());
+    $("appSwitchMenu").dispatchEvent(new W.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await sleep(50);
+    check("v31 switcher closes", $("appSwitchMenu").classList.contains("hidden") && $("appSwitchBtn").getAttribute("aria-expanded") === "false");
+    check("v31 logotype", D.querySelector(".appbar .brand").textContent === "QuizQrusher" && D.title === "QuizQrusher");
     check("p7 help frame not loaded yet", !$("feedbackFrame").getAttribute("src"));
     click("whatsNewBtn"); await sleep(300);
     check("p7 what's new", visible("helpScreen") && txt("help-whatsnew") === "What's new" && D.querySelectorAll(".versions dt").length >= 9);
@@ -623,9 +632,32 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     copyBtn.click(); await sleep(400);
     check("p7 prompt copy", copyBtn.textContent === "Copied");
     check("p7 prompt shown", cards[2].querySelector("pre").textContent.indexOf("medical assessment architect") > 0);
+    // v3.1 - prompt sets: the picker at the top of Help, blanks filled from "Your class or topic"
+    const psSet = async (id, v) => { $(id).value = v; $(id).dispatchEvent(new W.Event($(id).tagName === "SELECT" ? "change" : "input")); await sleep(30); };
+    check("v31 sets listed", [...$("psetSelect").options].map(o => o.value).join() === "medical,dental,premed,ee,me" && $("psetSelect").value === "medical" && $("psetCourseField").classList.contains("hidden"));
+    let leftBlank = [];
+    for (const k of ["dental", "premed", "ee", "me"]) {
+      await psSet("psetSelect", k);
+      const pres = [...cards].map(c => c.querySelector("pre").textContent);
+      if (pres.some(t => t.length < 500 || t.indexOf("[COURSE OR TOPIC]") < 0) || pres.some(t => /\{\{\w+\}\}/.test(t))) leftBlank.push(k);
+    }
+    check("v31 every set has four prompts with blanks", leftBlank.length === 0 && !$("psetCourseField").classList.contains("hidden"), leftBlank.join());
+    await psSet("psetSelect", "ee"); await psSet("psetCourse", "Circuits II");
+    const eeTexts = [...cards].map(c => c.querySelector("pre").textContent);
+    check("v31 blanks filled", eeTexts.every(t => t.indexOf("[COURSE OR TOPIC]") < 0 && t.indexOf("Circuits II") > 0) && eeTexts[0].indexOf("netlist") > 0 && cards[0].querySelector(".pname").textContent === "ee_slide_miner.md" && D.querySelector('[data-pfile="generator"]').textContent === "ee_que_generator.md" && D.querySelector("[data-psetname]").textContent === "Electrical engineering");
+    [...cards[3].querySelectorAll("button")].find(b => b.textContent === "Download").click(); await sleep(200);
+    const eeDl = captured[captured.length - 1];
+    check("v31 set prompt download", eeDl.name === "ee_que_generator.md" && (await (await fetch(eeDl.href)).text()) === eeTexts[3]);
+    check("v31 set remembered", JSON.parse(W.localStorage.getItem("quizQrusher:promptSet")).set === "ee" && JSON.parse(W.localStorage.getItem("quizQrusher:promptSet")).course === "Circuits II");
+    click(D.querySelector('.tab[data-tab="home"]')); await sleep(200);
+    click("downloadPromptsBtn"); await sleep(100);
+    check("v31 home download follows the set", captured[captured.length - 1].name === "ee_prompts.zip");
+    click(D.querySelector('.tab[data-tab="help"]')); await sleep(200);
+    await psSet("psetCourse", ""); await psSet("psetSelect", "medical");
+    check("v31 back to medical", cards[0].querySelector(".pname").textContent === "slide_miner_v1.md" && $("psetCourseField").classList.contains("hidden"));
     click(D.querySelector('#helpBody [data-tab="feedback"]')); await sleep(400);
     check("p7 feedback", visible("feedbackScreen") && $("feedbackFrame").getAttribute("src") === "https://docs.google.com/forms/d/e/1FAIpQLSdas9u7aNVOe7Oael27TN0RIwML9J9-DSwLZ6Yr3QYeg5IjtA/viewform?embedded=true", $("feedbackFrame").getAttribute("src"));
-    check("p7 env line", /^Quiz Qrusher 3\.0\.2 · (Chrome|Edge|Firefox|Safari) \d+ on \w+/.test(txt("envInfo")), txt("envInfo"));
+    check("p7 env line", /^QuizQrusher 3\.1\.0 · (Chrome|Edge|Firefox|Safari) \d+ on \w+/.test(txt("envInfo")), txt("envInfo"));
     const emailRe = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/;
     const idxSrc = await getText("/index.html"), litSrc7 = await getText("/lite.html");
     check("p7 no email address", !emailRe.test(idxSrc) && !emailRe.test(litSrc7), (idxSrc.match(emailRe) || litSrc7.match(emailRe) || [""])[0]);
@@ -676,7 +708,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     // ======== Phase 8: installable app (manifest, icons, service worker, update offer) ========
     if (/noidb/.test(location.search)) log("SKIP p8 (variant page has its own scope)"); else {
     const man = JSON.parse(await getText("/manifest.webmanifest"));
-    check("p8 manifest", man.name === "Quiz Qrusher" && man.start_url === "./" && man.scope === "./" && man.display === "standalone" && man.icons.some(i => i.purpose === "maskable"));
+    check("p8 manifest", man.name === "QuizQrusher" && man.start_url === "./" && man.scope === "./" && man.display === "standalone" && man.icons.some(i => i.purpose === "maskable"));
     const pngSize = async (u) => { const b = new Uint8Array(await (await fetch(u)).arrayBuffer()); const v = new DataView(b.buffer); return b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47 ? v.getUint32(16) + "x" + v.getUint32(20) : "not png"; };
     const sizes = await Promise.all(["/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png", "/icons/apple-touch-icon.png"].map(pngSize));
     check("p8 icons", sizes.join() === "192x192,512x512,512x512,180x180", sizes.join());
@@ -697,7 +729,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     await reg.update();
     for (let i = 0; i < 50 && !reg.waiting; i++) await sleep(200);
     await sleep(300);
-    check("p8 update offered", !!reg.waiting && visible("toast") && txt("toastMsg") === "A new version of Quiz Qrusher is ready." && txt("toastYes") === "Reload", (!!reg.waiting) + " " + txt("toastMsg"));
+    check("p8 update offered", !!reg.waiting && visible("toast") && txt("toastMsg") === "A new version of QuizQrusher is ready." && txt("toastYes") === "Reload", (!!reg.waiting) + " " + txt("toastMsg"));
     click(D.querySelector('.tab[data-tab="help"]')); await sleep(200);
     check("p8 offer survives screen change", visible("toast"));
     const afterUpdate = bind();

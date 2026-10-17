@@ -4,7 +4,8 @@ Usage (from the repo root):
   python -I test-data/harness/check_shared.py          check: exit 1 and list every block that differs
   python -I test-data/harness/check_shared.py --sync   copy every shared block (and the CSS) from index.html into lite.html,
                                                        and regenerate index.html's embedded prompts + prompts/medical/medical_prompts.zip
-                                                       from prompts/medical/*.md
+                                                       from prompts/medical/*.md, the Prompt Builder templates from prompts/templates/*.md,
+                                                       and the other premade prompt sets (v3.1) from prompts/<set>/*.md
 
 index.html is the source of truth. lite.html carries index.html's whole <style> contents inside a
 "QQ-SHARED:css" fence, followed by its own Lite-only CSS. On the very first run, the /*@@CSS@@*/ and
@@ -36,10 +37,16 @@ TEMPLATE_DIR = "prompts/templates"
 TEMPLATE_ORDER = ["slide_miner.md", "data_sanitizer.md", "style_researcher.md", "que_generator.md"]
 TEMPLATES_BLOCK = re.compile(r"(?s)/\* === PROMPTS:templates === \*/\n.*?\n(\s*)/\* === /PROMPTS === \*/")
 
+# v3.1 - the other premade prompt sets, picked from the dropdown at the top of Help: (block name, JS variable, folder).
+# Their text uses the blank [COURSE OR TOPIC], which the app fills in from Help's "Your class or topic" box.
+SET_ORDER = ["slide_miner.md", "data_sanitizer.md", "style_researcher.md", "que_generator.md"]
+PROMPT_SETS = [("dental", "PROMPTS_DENTAL", "prompts/dental"), ("premed", "PROMPTS_PREMED", "prompts/premed"),
+               ("ee", "PROMPTS_EE", "prompts/ee"), ("me", "PROMPTS_ME", "prompts/me")]
+
 
 def prompt_texts(folder=PROMPT_DIR, order=PROMPT_ORDER):
     import os
-    names = order + sorted(n for n in os.listdir(folder) if n.endswith(".md") and n not in order)
+    names = order + sorted(n for n in os.listdir(folder) if n.endswith(".md") and n not in order and n != "README.md")
     return [(n, open(folder + "/" + n, encoding="utf-8").read().replace("\r\n", "\n")) for n in names]
 
 
@@ -62,6 +69,23 @@ def templates_step(index, sync):
         open("index.html", "w", encoding="utf-8", newline="").write(index)
         return index, []
     return index, ([] if m.group(0) == want else ["index.html PROMPTS:templates block is out of date with " + TEMPLATE_DIR])
+
+
+def sets_step(index, sync):
+    """v3.1 - premade prompt sets: prompts/<set>/*.md -> index.html's PROMPTS:<set> blocks."""
+    problems = []
+    for block, var, folder in PROMPT_SETS:
+        want = prompts_js(prompt_texts(folder, SET_ORDER), block, var, folder)
+        m = re.search(r"(?s)/\* === PROMPTS:" + block + r" === \*/\n.*?\n(\s*)/\* === /PROMPTS === \*/", index)
+        if not m:
+            problems.append("index.html has no PROMPTS:" + block + " block")
+        elif sync:
+            index = index[:m.start()] + want + index[m.end():]
+        elif m.group(0) != want:
+            problems.append("index.html PROMPTS:" + block + " block is out of date with " + folder)
+    if sync:
+        open("index.html", "w", encoding="utf-8", newline="").write(index)
+    return index, problems
 
 
 def build_zip(texts):
@@ -103,6 +127,8 @@ def main():
     index, prompt_problems = prompts_step(index, "--sync" in sys.argv)
     index, template_problems = templates_step(index, "--sync" in sys.argv)
     prompt_problems += template_problems
+    index, set_problems = sets_step(index, "--sync" in sys.argv)   #v3.1
+    prompt_problems += set_problems
     for pr in prompt_problems:
         print(pr)
     lite = open("lite.html", encoding="utf-8").read()

@@ -1,4 +1,4 @@
-/* Quiz Qrusher service worker (v3.0, Phase 8). Keeps the app working offline once it has been opened.
+/* QuizQrusher service worker (v3.0, Phase 8). Keeps the app working offline once it has been opened.
  *
  * - Every file in PRECACHE is cached together under one version; requests for them are answered from that cache.
  * - VERSION is a hash of those files' contents, written by `python -I test-data/harness/check_shared.py --sync`.
@@ -9,7 +9,7 @@
  * - Cache names start with "quizQrusher-": every GitHub Pages project of this user shares the origin.
  */
 "use strict";
-const VERSION = "20ea8f49ca8b"; // generated: check_shared.py --sync
+const VERSION = "acba50962616"; // generated: check_shared.py --sync
 const CACHE = "quizQrusher-" + VERSION;
 const PRECACHE = [
   "./",

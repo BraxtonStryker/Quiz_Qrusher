@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quiz Qrusher Lite</title>
+<title>QuizQrusher Lite</title>
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4gPGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjNTE0NUU2Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjM0EzMUI4Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+IDxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iMTEyIiBmaWxsPSJ1cmwoI2cpIi8+IDxnIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0ZGRkZGRiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4gPGNpcmNsZSBjeD0iMjQ2IiBjeT0iMjQwIiByPSIxNTMiIHN0cm9rZS13aWR0aD0iNTAiLz4gPHBhdGggZD0iTTM2OCAzMzZMNDMwIDM3OCIgc3Ryb2tlLXdpZHRoPSI1NCIvPiA8cGF0aCBkPSJNMTkwIDI0NEwyMzIgMjg4TDMwNCAyMDAiIHN0cm9rZS13aWR0aD0iMzQiLz4gPC9nPiA8L3N2Zz4="> <!--v3.0 - Phase 8: inline, so Lite stays one self-contained file-->
 <meta name="theme-color" content="#4338CA">
 <!--v3.0 - Lite: one quiz at a time, works offline from a single file. Settings live in the qq-settings block below and
@@ -27,6 +27,7 @@
     --shadow-knob:0 1px 3px rgba(0,0,0,.3);  /*v3.0*/
     --overlay:rgba(10,14,20,.55);            /*v3.0 - behind dialogs*/
     --fs:1; --lh:1;                          /*v3.0 - text size and line spacing multipliers (Settings)*/
+    --app-qq:#4338CA; --app-ib:#1E7A4C; --app-cc:#C2410C;  /*v3.1 - each study app's own color, for the app switcher*/
     --font-body:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   /* v3.0 - dark tokens apply for "Match system" when the OS is dark, and always for data-theme="dark" */
@@ -42,6 +43,7 @@
         --navy:#8FB0E8; --navy-soft:#1A2436;  /*v2.3.2*/
         --on-accent:#FFFFFF;                  /*v3.0*/
         --knob:#F4F6FA;                       /*v3.0*/
+        --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C;  /*v3.1*/
         --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
     }
   }
@@ -56,6 +58,7 @@
       --navy:#8FB0E8; --navy-soft:#1A2436;  /*v2.3.2*/
       --on-accent:#FFFFFF;                  /*v3.0*/
       --knob:#F4F6FA;                       /*v3.0*/
+      --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C;  /*v3.1*/
       --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
   }
   /* v3.0 - fonts (Settings > Text). Atkinson Hyperlegible: Copyright 2020 Braille Institute of America, Inc.,
@@ -102,9 +105,26 @@
   .brand{background:none; border:none; color:var(--ink); font-size:calc(17px * var(--fs)); font-weight:750; letter-spacing:-.02em; padding:14px 0}
   .brand span{color:var(--accent)}
   .brandgrp{display:flex; align-items:center; gap:2px}              /*v3.0.2 - back link + logotype*/
-  .homeback{display:inline-grid; place-items:center; width:24px; height:32px; margin-left:-8px; color:var(--muted); border-radius:6px; text-decoration:none}
-  .homeback:hover{color:var(--ink); background:var(--surface-2)}
-  .homeback svg{width:18px; height:18px}
+  /* v3.1 - app switcher: the down arrow before the logotype opens a menu of the study apps, with Home last (replaces v3.0.2's "<" link) */
+  .appsw{position:relative; display:flex; align-items:center}
+  .appsw-btn{display:inline-grid; place-items:center; width:26px; height:32px; margin-left:-8px; padding:0; background:none; border:none; color:var(--muted); border-radius:6px}
+  .appsw-btn:hover, .appsw-btn[aria-expanded="true"]{color:var(--ink); background:var(--surface-2)}
+  .appsw-btn svg{width:18px; height:18px; transition:transform .15s ease}
+  .appsw-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
+  .appsw-menu{position:absolute; top:calc(100% + 6px); left:-8px; z-index:60; width:250px; max-width:calc(100vw - 24px); padding:6px;
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+  .appsw-item{display:flex; align-items:center; gap:12px; padding:8px 10px; border-radius:var(--radius-sm); color:var(--ink); text-decoration:none;
+    font-size:calc(16.5px * var(--fs)); font-weight:750; letter-spacing:-.02em}
+  .appsw-item:hover, .appsw-item:focus-visible{background:var(--surface-2)}
+  .appsw-item svg{width:30px; height:30px; flex:none; border-radius:8px}
+  .appsw-item b{font-weight:inherit}
+  .appsw-item.qq b{color:var(--app-qq)} .appsw-item.ib b{color:var(--app-ib)} .appsw-item.cc b{color:var(--app-cc)}
+  .appsw-item[aria-current="page"]::after{content:""; margin-left:auto; width:8px; height:8px; border-radius:50%; background:var(--muted)}
+  .appsw-home{display:flex; align-items:center; gap:12px; margin-top:6px; padding:9px 10px; border:1px solid var(--line); border-radius:var(--radius-sm);
+    background:var(--surface-2); color:var(--ink); text-decoration:none; font-size:calc(15px * var(--fs)); font-weight:650}
+  .appsw-home:hover, .appsw-home:focus-visible{border-color:var(--accent)}
+  .appsw-home svg{width:30px; height:30px; flex:none; border-radius:8px; box-shadow:0 0 0 1px var(--line)}
+  .appsw-home small{display:block; font-size:calc(12.5px * var(--fs)); font-weight:500; color:var(--muted)}
   .tabs{display:flex; align-items:center; gap:2px; overflow-x:auto; scrollbar-width:none; flex:1; min-width:0}
   .tabs .push{flex:1; min-width:12px}                                 /*v3.0 - pushes Feedback, Help and Settings to the right edge*/
   .tab.icon{display:inline-grid; place-items:center; padding:12px 10px 10px}
@@ -113,7 +133,7 @@
   .tab{background:none; border:none; color:var(--muted); font-size:calc(14.5px * var(--fs)); font-weight:600; padding:15px 11px 13px; border-bottom:2px solid transparent; white-space:nowrap}
   .tab:hover{color:var(--ink)}
   .tab[aria-current="page"]{color:var(--accent); border-bottom-color:var(--accent)}
-  @media (max-width:560px){ .appbar-in{gap:0} .brand{padding:12px 0 0} .homeback{margin-top:12px} .tabs{flex-basis:100%} .tab{padding:10px 10px 11px} }
+  @media (max-width:560px){ .appbar-in{gap:0} .brand{padding:12px 0 0} .appsw{margin-top:12px} .tabs{flex-basis:100%} .tab{padding:10px 10px 11px} }
 
   /* ---------- Home ---------- */ /*v3.0*/
   .tiles{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px}
@@ -171,6 +191,12 @@
   .promptcard details{margin-top:8px}
   .promptcard summary{cursor:pointer; color:var(--muted); font-size:calc(13px * var(--fs))}
   .promptcard pre{white-space:pre-wrap; overflow-wrap:anywhere; font-size:calc(12.5px * var(--fs)); line-height:calc(1.45 * var(--lh)); background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:10px; max-height:320px; overflow:auto}
+  .psets{display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px 16px; margin-top:18px; padding:14px 16px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); scroll-margin-top:12px}  /*v3.1 - prompt set picker*/
+  .psets .fu-field select{min-width:240px}
+  .psets .fu-field input{width:240px}
+  .psetnote{flex-basis:100%; margin:0; font-size:calc(13.5px * var(--fs)); color:var(--muted)}
+  .psetnote .linkbtn{font-size:inherit; padding:0}
+  .psetnow{color:var(--muted)}
   .pb-form{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-top:6px}  /*v3.0 - Phase 9*/
   .pb-form .wide{grid-column:1 / -1}
   .pb-form .fu-field input, .pb-form .fu-field select{width:100%; min-width:0}   /* beats .fu-field input{width:120px} */
@@ -488,7 +514,7 @@ window.qqReadSettings = function(){
 <!-- ====== APP BAR ====== -->
 <header class="appbar">
   <div class="appbar-in">
-    <button class="brand" type="button" data-go="home">Quiz <span>Qrusher</span><small>LITE</small></button>
+    <button class="brand" type="button" data-go="home">Quiz<span>Qrusher</span><small>LITE</small></button>
     <nav class="tabs" aria-label="Main">
       <button class="tab" type="button" data-tab="home" aria-current="page">Home</button>
       <span class="push" aria-hidden="true"></span>
@@ -520,7 +546,7 @@ window.qqReadSettings = function(){
     </div>
 
     <div class="card hero" style="margin-top:16px">
-      <h1>Quiz Qrusher Lite</h1>
+      <h1>QuizQrusher Lite</h1>
       <p class="lede">Load a CSV of questions, take the quiz, and get a graded report that shows your weak categories. Progress saves automatically in this browser.</p>
 
       <label class="drop" id="dropZone" for="fileInput" tabindex="0" role="button" aria-label="Choose a CSV file">
@@ -542,7 +568,7 @@ window.qqReadSettings = function(){
             </svg>
           </span>
           <div><strong>Or open a save file</strong> or drop it here</div>
-          <span class="filehint">A .json save from Quiz Qrusher 3, or a version 2 .txt (load its CSV above first)</span>
+          <span class="filehint">A .json save from QuizQrusher 3, or a version 2 .txt (load its CSV above first)</span>
         </label>
         <input type="file" id="saveInput" accept=".json,.txt,application/json,text/plain" class="hidden">
       </div>
@@ -555,7 +581,7 @@ window.qqReadSettings = function(){
         <span class="muted" style="font-size:calc(13px * var(--fs))" id="loadedInfo"></span>
       </div>
     </div>
-    <p class="homefoot muted">Quiz Qrusher Lite v<span id="appVersion"></span> &middot; works offline &middot; <a href="https://braxtonstryker.github.io/Quiz_Qrusher/" target="_blank" rel="noopener">Full version</a></p>
+    <p class="homefoot muted">QuizQrusher Lite v<span id="appVersion"></span> &middot; works offline &middot; <a href="https://braxtonstryker.github.io/Quiz_Qrusher/" target="_blank" rel="noopener">Full version</a></p>
   </section>
 
   <!-- ====== QUIZ ====== -->
@@ -641,7 +667,7 @@ window.qqReadSettings = function(){
   <section id="helpScreen" class="hidden">
     <div class="backbar hidden" id="helpBackBar"><button class="linkbtn back" id="helpBackBtn" type="button">&larr; Back to quiz</button></div>
     <div class="card hero helpbody">
-      <h1>Using Quiz Qrusher Lite</h1>
+      <h1>Using QuizQrusher Lite</h1>
       <p class="muted">Lite is a single file that works offline. It keeps one quiz at a time; the <a href="https://braxtonstryker.github.io/Quiz_Qrusher/" target="_blank" rel="noopener">full version</a> keeps a library of every quiz.</p>
       <h2>Taking a quiz</h2>
       <ol>
@@ -660,7 +686,7 @@ window.qqReadSettings = function(){
         <li>Otherwise Apply downloads a new copy. Delete the old file, put the new one in its place, and open it again.</li>
       </ul>
       <h2>Suggested setup</h2>
-      <p>A folder named <code>Quiz Qrusher Lite</code> holding <code>quiz_qrusher_v3.0_lite.html</code>. Link that folder in Settings (Chrome/Edge) and saves go into a <code>saves</code> folder inside it. In iCloud Drive or OneDrive, set the folder to &ldquo;Always keep on this device&rdquo;.</p>
+      <p>A folder named <code>QuizQrusher Lite</code> holding <code>quiz_qrusher_v3.0_lite.html</code>. Link that folder in Settings (Chrome/Edge) and saves go into a <code>saves</code> folder inside it. In iCloud Drive or OneDrive, set the folder to &ldquo;Always keep on this device&rdquo;.</p>
       <h2>Feedback</h2>
       <p>Found a bug or have an idea? Use the <a href="https://forms.gle/CYLHooZ76LtAvRGi8" target="_blank" rel="noopener">feedback form</a> (needs an internet connection). The full version's Help has the complete guide, including the AI prompts.</p>
     </div>
@@ -727,7 +753,7 @@ window.qqReadSettings = function(){
   // (the parser has built everything above; nothing has changed the DOM except the theme attributes on <html>, reset here).
   var SNAPSHOT = ("<!DOCTYPE html>\n" + document.documentElement.outerHTML).replace(/<html[^>]*>/, '<html lang="en">');
 
-  var APP_VERSION = "3.0.2"; //v3.0.2
+  var APP_VERSION = "3.1.0"; //v3.1
   var NS = "quizQrusher:", LNS = NS + "lite:";      // Lite keys never collide with the full app's
   var LITE_FILE = "quiz_qrusher_v3.0_lite.html";
   var FULL_URL = "https://braxtonstryker.github.io/Quiz_Qrusher/";
@@ -881,9 +907,9 @@ window.qqReadSettings = function(){
   function parseSaveFile(text){
     var obj;
     try { obj = JSON.parse(String(text).replace(/^﻿/, "")); }
-    catch (e){ throw new Error("That file isn't valid JSON, so it can't be a Quiz Qrusher backup."); }
-    if (!obj || obj.format !== SAVE_FORMAT) throw new Error("That JSON file isn't a Quiz Qrusher backup.");
-    if (typeof obj.version !== "number" || obj.version > SAVE_VERSION) throw new Error("That backup was made by a newer version of Quiz Qrusher. Update the app and try again.");
+    catch (e){ throw new Error("That file isn't valid JSON, so it can't be a QuizQrusher backup."); }
+    if (!obj || obj.format !== SAVE_FORMAT) throw new Error("That JSON file isn't a QuizQrusher backup.");
+    if (typeof obj.version !== "number" || obj.version > SAVE_VERSION) throw new Error("That backup was made by a newer version of QuizQrusher. Update the app and try again.");
     var b = obj.bank, a = obj.attempt;
     if (!b || typeof b.csvText !== "string" || !b.csvText) throw new Error("That backup is missing its question bank.");
     if (!a || !a.id || !a.questionOrder || !a.questionOrder.length) throw new Error("That backup is missing its quiz data.");
@@ -1362,7 +1388,7 @@ window.qqReadSettings = function(){
         return;
       }
       var state;
-      try { state = decodeSaveCode(text); } catch (e){ throw new Error("That file isn't a Quiz Qrusher save."); }
+      try { state = decodeSaveCode(text); } catch (e){ throw new Error("That file isn't a QuizQrusher save."); }
       var src = (text.match(/^Source CSV:\s*(.+?)\s*$/m) || [])[1] || "";
       if (!pendingBank || pendingBank.csvHash !== state.csvHash){
         throw new Error("This is a version 2 save. Load the CSV it was made from" + (src ? " (" + src + ")" : "") + " above first, then open the save again.");
