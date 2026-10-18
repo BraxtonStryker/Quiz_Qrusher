@@ -27,7 +27,7 @@
     --shadow-knob:0 1px 3px rgba(0,0,0,.3);  /*v3.0*/
     --overlay:rgba(10,14,20,.55);            /*v3.0 - behind dialogs*/
     --fs:1; --lh:1;                          /*v3.0 - text size and line spacing multipliers (Settings)*/
-    --app-qq:#4338CA; --app-ib:#1E7A4C; --app-cc:#C2410C;  /*v3.1 - each study app's own color, for the app switcher*/
+    --app-qq:#4338CA; --app-ib:#1E7A4C; --app-cc:#C2410C; --app-rd:#0F766E;  /*v3.1 - each study app's own color, for the app switcher*/
     --font-body:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   /* v3.0 - dark tokens apply for "Match system" when the OS is dark, and always for data-theme="dark" */
@@ -43,7 +43,7 @@
         --navy:#8FB0E8; --navy-soft:#1A2436;  /*v2.3.2*/
         --on-accent:#FFFFFF;                  /*v3.0*/
         --knob:#F4F6FA;                       /*v3.0*/
-        --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C;  /*v3.1*/
+        --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C; --app-rd:#2DD4BF;  /*v3.1*/
         --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
     }
   }
@@ -58,7 +58,7 @@
       --navy:#8FB0E8; --navy-soft:#1A2436;  /*v2.3.2*/
       --on-accent:#FFFFFF;                  /*v3.0*/
       --knob:#F4F6FA;                       /*v3.0*/
-      --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C;  /*v3.1*/
+      --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C; --app-rd:#2DD4BF;  /*v3.1*/
       --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
   }
   /* v3.0 - fonts (Settings > Text). Atkinson Hyperlegible: Copyright 2020 Braille Institute of America, Inc.,
@@ -118,7 +118,7 @@
   .appsw-item:hover, .appsw-item:focus-visible{background:var(--surface-2)}
   .appsw-item svg{width:30px; height:30px; flex:none; border-radius:8px}
   .appsw-item b{font-weight:inherit}
-  .appsw-item.qq b{color:var(--app-qq)} .appsw-item.ib b{color:var(--app-ib)} .appsw-item.cc b{color:var(--app-cc)}
+  .appsw-item.qq b{color:var(--app-qq)} .appsw-item.ib b{color:var(--app-ib)} .appsw-item.cc b{color:var(--app-cc)} .appsw-item.rd b{color:var(--app-rd)}
   .appsw-item[aria-current="page"]::after{content:""; margin-left:auto; width:8px; height:8px; border-radius:50%; background:var(--muted)}
   .appsw-home{display:flex; align-items:center; gap:12px; margin-top:6px; padding:9px 10px; border:1px solid var(--line); border-radius:var(--radius-sm);
     background:var(--surface-2); color:var(--ink); text-decoration:none; font-size:calc(15px * var(--fs)); font-weight:650}
@@ -753,7 +753,7 @@ window.qqReadSettings = function(){
   // (the parser has built everything above; nothing has changed the DOM except the theme attributes on <html>, reset here).
   var SNAPSHOT = ("<!DOCTYPE html>\n" + document.documentElement.outerHTML).replace(/<html[^>]*>/, '<html lang="en">');
 
-  var APP_VERSION = "3.1.0"; //v3.1
+  var APP_VERSION = "3.1.1"; //v3.1.1
   var NS = "quizQrusher:", LNS = NS + "lite:";      // Lite keys never collide with the full app's
   var LITE_FILE = "quiz_qrusher_v3.0_lite.html";
   var FULL_URL = "https://braxtonstryker.github.io/Quiz_Qrusher/";
