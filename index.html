@@ -31,7 +31,7 @@
     --shadow-knob:0 1px 3px rgba(0,0,0,.3);  /*v3.0*/
     --overlay:rgba(10,14,20,.55);            /*v3.0 - behind dialogs*/
     --fs:1; --lh:1;                          /*v3.0 - text size and line spacing multipliers (Settings)*/
-    --app-qq:#4338CA; --app-ib:#1E7A4C; --app-cc:#C2410C; --app-rd:#0F766E;  /*v3.1 - each study app's own color, for the app switcher*/
+    --app-qq:#4338CA; --app-ib:#1E7A4C; --app-cc:#C2410C; --app-rd:#1D4ED8;  /*v3.1 - each study app's own color, for the app switcher*/
     --font-body:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   /* v3.0 - dark tokens apply for "Match system" when the OS is dark, and always for data-theme="dark" */
@@ -47,7 +47,7 @@
         --navy:#8FB0E8; --navy-soft:#1A2436;  /*v2.3.2*/
         --on-accent:#FFFFFF;                  /*v3.0*/
         --knob:#F4F6FA;                       /*v3.0*/
-        --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C; --app-rd:#2DD4BF;  /*v3.1*/
+        --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C; --app-rd:#6EA8FE;  /*v3.1*/
         --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
     }
   }
@@ -62,7 +62,7 @@
       --navy:#8FB0E8; --navy-soft:#1A2436;  /*v2.3.2*/
       --on-accent:#FFFFFF;                  /*v3.0*/
       --knob:#F4F6FA;                       /*v3.0*/
-      --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C; --app-rd:#2DD4BF;  /*v3.1*/
+      --app-qq:#8B87FF; --app-ib:#6FD3A0; --app-cc:#FB923C; --app-rd:#6EA8FE;  /*v3.1*/
       --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
   }
   /* v3.0 - fonts (Settings > Text). Atkinson Hyperlegible: Copyright 2020 Braille Institute of America, Inc.,
@@ -505,8 +505,8 @@
           <a class="appsw-item qq" role="menuitem" href="../Quiz_Qrusher/" aria-current="page"><svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="swqq" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5145E6"/><stop offset="1" stop-color="#3A31B8"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#swqq)"/><g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round"><circle cx="246" cy="240" r="153" stroke-width="50"/><path d="M368 336L430 378" stroke-width="54"/><path d="M190 244L232 288L304 200" stroke-width="34"/></g></svg><span>Quiz<b>Qrusher</b></span></a>
           <a class="appsw-item ib" role="menuitem" href="../Class_Base/"><svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="swib" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#24935C"/><stop offset="1" stop-color="#16603B"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#swib)"/><rect x="132" y="92" width="268" height="190" rx="24" fill="#FFFFFF" fill-opacity=".42"/><rect x="92" y="130" width="282" height="206" rx="26" fill="#FFFFFF"/><path d="M136 186H290M136 230H252M136 274H214" fill="none" stroke="#1B7047" stroke-width="22" stroke-linecap="round"/><circle cx="338" cy="326" r="70" fill="#1B7047" stroke="#FFFFFF" stroke-width="30"/><path d="M392 380L432 420" fill="none" stroke="#FFFFFF" stroke-width="42" stroke-linecap="round"/></svg><span>Info<b>Base</b></span></a>
           <a class="appsw-item cc" role="menuitem" href="../CwikCard/"><svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="swcc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F26B1D"/><stop offset="1" stop-color="#B83A0A"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#swcc)"/><rect x="168" y="92" width="232" height="300" rx="30" fill="#FFFFFF" fill-opacity=".42" transform="rotate(12 284 242)"/><g transform="rotate(-6 236 268)"><rect x="120" y="118" width="232" height="300" rx="30" fill="#FFFFFF"/><path d="M262 166L192 290H240L218 372L290 244H242Z" fill="#C2410C"/></g></svg><span>Cwik<b>Card</b></span></a>
-          <a class="appsw-item rd" role="menuitem" href="../RunDown/"><svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="swrd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14A394"/><stop offset="1" stop-color="#0B5F59"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#swrd)"/><rect x="104" y="84" width="256" height="328" rx="30" fill="#FFFFFF"/><path d="M152 156H272" stroke="#0F766E" stroke-width="32" stroke-linecap="round"/><path d="M152 222H312M152 276H286M152 330H230" stroke="#0F766E" stroke-opacity=".5" stroke-width="22" stroke-linecap="round"/><circle cx="356" cy="360" r="82" fill="#0F766E" stroke="#FFFFFF" stroke-width="28"/><path d="M356 314V398M322 366L356 400L390 366" fill="none" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Run<b>Down</b></span></a>
-          <a class="appsw-home" role="menuitem" href="../"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#131A24"/><rect x="14" y="14" width="16" height="16" rx="4" fill="#5145E6"/><rect x="34" y="14" width="16" height="16" rx="4" fill="#24935C"/><rect x="14" y="34" width="16" height="16" rx="4" fill="#E8611A"/><rect x="34" y="34" width="16" height="16" rx="4" fill="#14A394"/></svg><span>Home<small>All study apps</small></span></a>
+          <a class="appsw-item rd" role="menuitem" href="../RunDown/"><svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="swrd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2F6BEA"/><stop offset="1" stop-color="#1E40AF"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#swrd)"/><rect x="104" y="84" width="256" height="328" rx="30" fill="#FFFFFF"/><path d="M152 156H272" stroke="#1D4ED8" stroke-width="32" stroke-linecap="round"/><path d="M152 222H312M152 276H286M152 330H230" stroke="#1D4ED8" stroke-opacity=".5" stroke-width="22" stroke-linecap="round"/><circle cx="356" cy="360" r="82" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="28"/><path d="M356 314V398M322 366L356 400L390 366" fill="none" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Run<b>Down</b></span></a>
+          <a class="appsw-home" role="menuitem" href="../"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#131A24"/><rect x="14" y="14" width="16" height="16" rx="4" fill="#5145E6"/><rect x="34" y="14" width="16" height="16" rx="4" fill="#24935C"/><rect x="14" y="34" width="16" height="16" rx="4" fill="#E8611A"/><rect x="34" y="34" width="16" height="16" rx="4" fill="#2F6BEA"/></svg><span>Home<small>All study apps</small></span></a>
         </div>
       </div>
       <button class="brand" type="button" data-go="home">Quiz<span>Qrusher</span></button>
@@ -895,6 +895,8 @@
 
       <h2 id="help-whatsnew">What's new</h2>
       <dl class="versions">
+        <dt>v3.1.2 &middot; October 2026</dt>
+        <dd>RunDown is blue in the study apps menu.</dd>
         <dt>v3.1.1 &middot; October 2026</dt>
         <dd>RunDown, a new Markdown word processor, joins the study apps menu.</dd>
         <dt>v3.1 &middot; October 2026</dt>
@@ -985,7 +987,7 @@
 (function(){
   "use strict";
 
-  var APP_VERSION = "3.1.1";            //v3.1.1
+  var APP_VERSION = "3.1.2";            //v3.1.2
   var NS = "quizQrusher:";              //v3.0 - every GitHub Pages project of this user shares one origin, so namespace all keys
 
   var HAS_FSA = "showDirectoryPicker" in window; //v3.0 - feature check for the saves folder; never sniff the user agent for this
