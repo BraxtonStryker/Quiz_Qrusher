@@ -31,6 +31,14 @@ async function getText(url) { return (await fetch(url)).text(); }
 function click(elOrId) { (typeof elOrId === "string" ? $(elOrId) : elOrId).click(); }
 function rowButtons(listId) { return [...$(listId).querySelectorAll(".row")].map(r => ({ title: r.querySelector(".rowtitle").textContent, meta: r.querySelector(".rowmeta").textContent, btns: [...r.querySelectorAll("button")] })); }
 function btn(row, label) { return row.btns.find(b => b.textContent === label); }
+// v3.1.3 - deleting a bank only takes it off the Start list; it goes for good with its last quiz. This deletes every quiz from Home.
+async function deleteAllQuizzes() {
+  for (const [tile, list, screen] of [["resume", "resumeList", "resumeScreen"], ["review", "reviewList", "reviewScreen"]]) {
+    click(D.querySelector('.tile[data-go="' + tile + '"]')); await sleep(400);
+    while (rowButtons(list).length) { btn(rowButtons(list)[0], "Delete").click(); await sleep(400); }
+    click(D.querySelector('#' + screen + ' [data-go="home"]')); await sleep(400);
+  }
+}
 
 // Waits for the app iframe to (re)load, then stubs dialogs and captures downloads. Call again after the app reloads itself.
 const confirms = [];
@@ -103,7 +111,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     const exp = captured[captured.length - 1];
     check("export name", /^qus_input_25_progress_\d{8}\.json$/.test(exp.name), exp.name);
     const expJson = JSON.parse(await (await fetch(exp.href)).text());
-    check("export format", expJson.format === "quiz-qrusher-save" && expJson.version === 3 && expJson.app === "3.1.0");
+    check("export format", expJson.format === "quiz-qrusher-save" && expJson.version === 3 && expJson.app === "3.1.3");
     check("export embeds csv", expJson.bank.csvText === csv25 && expJson.bank.csvHash === 634952293, expJson.bank.csvHash);
     check("export attempt fields", expJson.attempt.answers.filter(x => x !== null).length === 2 && expJson.attempt.flags[2] === 1 && expJson.attempt.notes === "my notes ü ✓" && expJson.attempt.revealed.length === 25 && !("bankId" in expJson.attempt));
     check("v301 export struck", expJson.attempt.struck.length === 25 && expJson.attempt.struck[3].join() === String(struckVal) && expJson.attempt.struck[5].length === 0, JSON.stringify(expJson.attempt.struck.slice(0, 6)));
@@ -135,6 +143,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("report downloads", names[0] === "qus_input_25_report.txt" && names[1] === "qus_input_25_report_missed.csv" && /^followup_request_\d{8}\.md$/.test(names[2]), names.join(","));
     const rep = await (await fetch(captured[captured.length - 3].href)).text();
     check("report source", rep.indexOf("Source: qus_input_25.csv") > 0);
+    check("v313 report lists struck options", rep.indexOf("\nStruck out (ruled out):\n  - ") > 0 && rep.indexOf("\nStruck out (ruled out): none") > 0); // Q4 has one option struck
 
     // ---- Review
     click(D.querySelector('#resultsScreen [data-go="home"]')); await sleep(400);
@@ -155,7 +164,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     await setFile("importInput", exp.name, expText, "application/json"); await sleep(300);
     check("import v3 existing newer kept", visible("importDone") && txt("importDone").indexOf("You already have this quiz") === 0, txt("importDone") + " / " + txt("importError"));
 
-    // ---- Delete the bank (and its attempts), then import v3 JSON fresh
+    // ---- Delete the bank (v3.1.3: its quizzes stay), delete the quizzes too, then import v3 JSON fresh
     click(D.querySelector('.tile[data-go="start"]')); await sleep(400);
     rows = rowButtons("bankList");
     check("bank shows 2 attempts", rows[0].meta.indexOf("2 attempts") > 0, rows[0].meta);
@@ -163,7 +172,10 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("rename", rowButtons("bankList")[0].title === "Renamed Bank");
     btn(rowButtons("bankList")[0], "Delete").click(); await sleep(400);
     check("bank deleted", rowButtons("bankList").length === 0 && $("bankList").textContent.indexOf("No question banks yet") === 0);
+    check("v313 bank delete only removes it from the list", confirms[confirms.length - 1].indexOf("Remove “Renamed Bank” from this list?\n\nIts 2 quizzes stay") === 0, confirms[confirms.length - 1]);
     click(D.querySelector('#startScreen [data-go="home"]')); await sleep(400);
+    check("v313 quizzes kept after bank delete", txt("tileResumeSub") === "1 quiz in progress" && txt("tileReviewSub") === "1 finished quiz" && txt("tileStartSub") === "Load a question CSV", txt("tileResumeSub") + " / " + txt("tileReviewSub") + " / " + txt("tileStartSub"));
+    await deleteAllQuizzes();
     check("home empty after delete", txt("tileResumeSub") === "Nothing in progress" && txt("tileReviewSub") === "No finished quizzes yet");
     click(D.querySelector('.tile[data-go="import"]')); await sleep(200);
     await setFile("importInput", exp.name, expText, "application/json"); await sleep(400);
@@ -187,6 +199,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     click(D.querySelector('.tile[data-go="start"]')); await sleep(400);
     btn(rowButtons("bankList")[0], "Delete").click(); await sleep(400);
     click(D.querySelector('#startScreen [data-go="home"]')); await sleep(300);
+    await deleteAllQuizzes(); //v3.1.3 - the bank goes with its last quiz
     click(D.querySelector('.tile[data-go="import"]')); await sleep(200);
     await setFile("importInput", "v2save.txt", v2); await sleep(400);
     check("v2 asks for csv", visible("importCsvStep") && txt("importCsvMsg").indexOf("question_input_09072616.csv") > 0, txt("importCsvMsg") + " / " + txt("importError"));
@@ -502,7 +515,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     D.querySelectorAll(".qblock")[2].querySelectorAll(".ostrike")[1].click(); // v3.0.1 - strike
     $("noteText").value = "lite notes"; $("noteText").dispatchEvent(new W.Event("input", { bubbles: true })); await sleep(900);
     let liteCur = JSON.parse(W.localStorage.getItem("quizQrusher:lite:current") || "null");
-    check("l6 autosave", liteCur && liteCur.format === "quiz-qrusher-save" && liteCur.attempt.answers.filter(a => a !== null).length === 1 && liteCur.attempt.notes === "lite notes" && liteCur.attempt.flags[1] === 1 && liteCur.attempt.answers[2] === null && liteCur.attempt.struck[2].length === 1 && liteCur.app === "3.1.0");
+    check("l6 autosave", liteCur && liteCur.format === "quiz-qrusher-save" && liteCur.attempt.answers.filter(a => a !== null).length === 1 && liteCur.attempt.notes === "lite notes" && liteCur.attempt.flags[1] === 1 && liteCur.attempt.answers[2] === null && liteCur.attempt.struck[2].length === 1 && liteCur.app === "3.1.3");
     check("l6 status check only", $("saveStatus").querySelector(".ic").textContent === "✓" && W.getComputedStyle($("saveStatus").querySelector(".lbl")).display === "none");
     const liteQ1 = D.querySelectorAll(".qblock")[0].querySelector(".qtext").textContent;
     click(D.querySelector('.quizbar [data-go="home"]')); await sleep(300);
@@ -613,7 +626,7 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("v31 switcher shown", !$("appSwitch").classList.contains("hidden") && $("appSwitchMenu").classList.contains("hidden"));
     click("appSwitchBtn"); await sleep(50);
     const swLinks = [...$("appSwitchMenu").querySelectorAll("a")].map(a => a.getAttribute("href"));
-    check("v31 switcher menu", !$("appSwitchMenu").classList.contains("hidden") && $("appSwitchBtn").getAttribute("aria-expanded") === "true" && swLinks.join() === "../Quiz_Qrusher/,../Class_Base/,../CwikCard/,../" && $("appSwitchMenu").querySelector('[aria-current="page"]').textContent === "QuizQrusher", swLinks.join());
+    check("v31 switcher menu", !$("appSwitchMenu").classList.contains("hidden") && $("appSwitchBtn").getAttribute("aria-expanded") === "true" && swLinks.join() === "../Quiz_Qrusher/,../Class_Base/,../CwikCard/,../RunDown/,../" && $("appSwitchMenu").querySelector('[aria-current="page"]').textContent === "QuizQrusher", swLinks.join());
     $("appSwitchMenu").dispatchEvent(new W.KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await sleep(50);
     check("v31 switcher closes", $("appSwitchMenu").classList.contains("hidden") && $("appSwitchBtn").getAttribute("aria-expanded") === "false");
     check("v31 logotype", D.querySelector(".appbar .brand").textContent === "QuizQrusher" && D.title === "QuizQrusher");

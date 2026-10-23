@@ -849,7 +849,7 @@
       <h2 id="help-quiz">Taking a quiz</h2>
       <ul>
         <li><strong>Flags:</strong> the flag in a question's corner marks it to revisit. You're warned at Submit if any are still flagged, and you can retake just the flagged ones later.</li>
-        <li><strong>Strike out:</strong> the S button at the right of each option crosses it out, so you can rule it out while you think. Click it again to restore the option. Choosing a struck option restores it too.</li>
+        <li><strong>Strike out:</strong> the S button at the right of each option crosses it out, so you can rule it out while you think. Click it again to restore the option. Choosing a struck option restores it too. The Quiz Report (.txt) lists what you struck out on each missed question.</li> <!--v3.1.3-->
         <li><strong>Unselect:</strong> in Test mode, click your chosen option again to clear it and leave the question unanswered.</li>
         <li><strong>Notes:</strong> the NOTES tab on the right opens a notepad that's saved with the quiz.</li>
         <li><strong>Tutor and Test mode:</strong> the TUTOR MODE switch above Notes adds a <strong>Show answer</strong> button to every question. Revealing locks the question. A question revealed before you answered isn't scored ("Revealed &mdash; not scored"); if you answered first, it counts as answered, right or wrong.</li>
@@ -874,10 +874,11 @@
         <li><strong>Review previous quiz</strong> lists submitted quizzes with their scores. Open one to see its results again.</li>
         <li><strong>Retake</strong> starts a fresh, reshuffled attempt: all questions, or just the <strong>missed</strong>, <strong>flagged</strong>, or <strong>missed + flagged</strong> ones.</li>
         <li><strong>Category trends</strong> appear once a question bank has two or more full attempts, showing each category's score over time.</li>
+        <li><strong>Deleting a question bank</strong> on Start new quiz only takes it off that list. Its quizzes stay in Resume and Review, and loading the same CSV again brings it back. It's gone for good once its last quiz is deleted.</li> <!--v3.1.3-->
       </ul>
 
       <h2 id="help-followup">Follow-up requests</h2>
-      <p>The <strong>Follow-up request (.md)</strong> on Results is a ready-to-send prompt listing your weak categories, the concepts you missed and the wrong answers you chose. Pick a difficulty and question count (defaults are in Settings), download it, and give it to Claude with your <code>slide_data.md</code> and <code>question_styling.md</code>. You can also download the <strong>Quiz Report (.txt)</strong> and <strong>Missed Questions (.csv)</strong>.</p>
+      <p>The <strong>Follow-up request (.md)</strong> on Results is a ready-to-send prompt listing your weak categories, the concepts you missed and the wrong answers you chose. Pick a difficulty and question count (defaults are in Settings), download it, and give it to Claude with your <code>slide_data.md</code> and <code>question_styling.md</code>. You can also download the <strong>Quiz Report (.txt)</strong> (it lists the options you struck out on each missed question, so a tutor or an AI can skip what you'd ruled out and catch a correct answer you struck) and <strong>Missed Questions (.csv)</strong>.</p> <!--v3.1.3-->
 
       <h2 id="help-lite">Lite version</h2>
       <p>Lite is a single file that works offline, keeps one quiz at a time, and carries its settings inside itself. <button class="linkbtn" type="button" id="helpOpenLiteBtn">Open Lite</button> or use <strong>Download for offline use</strong> on Home, which bakes your current settings into the copy. Keep it in its own folder (for example "QuizQrusher Lite"). In Chrome or Edge, link that folder in Lite's Settings: saves go into a <code>saves</code> folder beside it, and <strong>Apply</strong> updates the Lite file directly. Otherwise Apply downloads a new copy to put in place of the old one.</p>
@@ -895,6 +896,8 @@
 
       <h2 id="help-whatsnew">What's new</h2>
       <dl class="versions">
+        <dt>v3.1.3 &middot; October 2026</dt>
+        <dd>The Quiz Report (.txt) lists the options you struck out on each missed question, and flags it when one of them was the correct answer. Deleting a question bank on Start new quiz no longer deletes its quizzes: they stay in Resume and Review.</dd>
         <dt>v3.1.2 &middot; October 2026</dt>
         <dd>RunDown is blue in the study apps menu.</dd>
         <dt>v3.1.1 &middot; October 2026</dt>
@@ -987,7 +990,7 @@
 (function(){
   "use strict";
 
-  var APP_VERSION = "3.1.2";            //v3.1.2
+  var APP_VERSION = "3.1.3";            //v3.1.3
   var NS = "quizQrusher:";              //v3.0 - every GitHub Pages project of this user shares one origin, so namespace all keys
 
   var HAS_FSA = "showDirectoryPicker" in window; //v3.0 - feature check for the saves folder; never sniff the user agent for this
@@ -1398,11 +1401,17 @@
 
   /* ---------- Library: banks and attempts ---------- */ //v3.0
   // A bank is one CSV. The same CSV text always maps to the same bank.
-  function findOrCreateBank(csvText, fileName, name){
+  // reshow: the user loaded this CSV as a bank (Start screen, CSV import), so a bank removed from the Start list comes back //v3.1.3
+  function findOrCreateBank(csvText, fileName, name, reshow){
     var qs = buildQuestions(parseCSV(csvText));   // throws a user-facing error for a bad CSV
     var hash = hashStr(csvText);
     return store.getAll("banks").then(function(banks){
       var hit = banks.filter(function(b){ return b.csvHash === hash; })[0];
+      if (hit && reshow && hit.hidden){ //v3.1.3
+        delete hit.hidden;
+        if (cur && cur.bank.id === hit.id) delete cur.bank.hidden;
+        return store.put("banks", hit).then(function(){ return hit; });
+      }
       if (hit) return hit;
       var now = Date.now();
       var bank = { id: uid("b"), name: name || cleanName(fileName), fileName: fileName || "", csvText: csvText, csvHash: hash, questionCount: qs.length, createdAt: now, updatedAt: now };
@@ -1582,6 +1591,7 @@
       var banks = r[0], atts = r[1];
       var open = atts.filter(function(a){ return a.status !== "submitted"; }).length;
       var done = atts.length - open;
+      banks = banks.filter(function(b){ return !b.hidden; }); //v3.1.3 - removed from the Start list, kept for their quizzes
       el("tileStartSub").textContent = banks.length ? plural(banks.length, "question bank") + " saved" : "Load a question CSV";
       el("tileResumeSub").textContent = open ? plural(open, "quiz", "quizzes") + " in progress" : "Nothing in progress";
       el("tileReviewSub").textContent = done ? plural(done, "finished quiz", "finished quizzes") : "No finished quizzes yet";
@@ -1621,7 +1631,7 @@
   function renderBankList(){
     var list = el("bankList");
     getAllBoth().then(function(r){
-      var banks = r[0], atts = r[1];
+      var banks = r[0].filter(function(b){ return !b.hidden; }), atts = r[1]; //v3.1.3
       list.innerHTML = "";
       if (!banks.length){ list.appendChild(emptyEl("No question banks yet. Load a CSV above to add one.")); return; }
       banks.sort(function(a, b){ return (b.updatedAt || 0) - (a.updatedAt || 0); }).forEach(function(bank){
@@ -1649,15 +1659,21 @@
       (atts || []).forEach(function(a){ if (a.bankId === bank.id) queueFolderWrite(a.id); });
     });
   }
+  // v3.1.3 - a bank with quizzes is only hidden from this list: its quizzes stay in Resume and Review (they need its
+  // questions). It's deleted for good along with its last quiz, and loading its CSV again brings it back.
   function deleteBank(bank, attemptCount){
-    var msg = "Delete the question bank “" + bank.name + "”" + (attemptCount ? " and its " + plural(attemptCount, "attempt") : "") + "?\n\nThis can't be undone. Export backups first if you want to keep them.";
+    var msg = attemptCount
+      ? "Remove “" + bank.name + "” from this list?\n\nIts " + plural(attemptCount, "quiz", "quizzes") + " stay in Resume previous quiz and Review previous quiz. Load the same CSV again to bring it back."
+      : "Delete the question bank “" + bank.name + "”?\n\nThis can't be undone.";
     if (!window.confirm(msg)) return;
     store.getAll("attempts").then(function(atts){
-      var mine = atts.filter(function(a){ return a.bankId === bank.id; });
-      mine.forEach(function(a){ folderDelete(a.id); }); //v3.0
-      return Promise.all(mine.map(function(a){ return store.del("attempts", a.id); }));
-    }).then(function(){ return store.del("banks", bank.id); }).then(function(){
-      if (cur && cur.bank.id === bank.id) cur = null;
+      if (atts.some(function(a){ return a.bankId === bank.id; })){
+        bank.hidden = true;
+        if (cur && cur.bank.id === bank.id) cur.bank.hidden = true;
+        return store.put("banks", bank);
+      }
+      return store.del("banks", bank.id).then(function(){ if (cur && cur.bank.id === bank.id) cur = null; });
+    }).then(function(){
       if (pendingBank && pendingBank.id === bank.id) resetStart();
       renderBankList();
     });
@@ -1667,8 +1683,16 @@
     folderDelete(attempt.id); //v3.0
     store.del("attempts", attempt.id).then(function(){
       if (cur && cur.attempt.id === attempt.id) cur = null;
-      after();
-    });
+      return dropHiddenBank(attempt.bankId); //v3.1.3
+    }).then(after);
+  }
+  // v3.1.3 - a bank removed from the Start list goes for good once its last quiz is deleted
+  function dropHiddenBank(bankId){
+    return Promise.all([store.get("banks", bankId), store.getAll("attempts")]).then(function(r){
+      var bank = r[0];
+      if (!bank || !bank.hidden || r[1].some(function(a){ return a.bankId === bankId; })) return;
+      return store.del("banks", bankId);
+    }).catch(function(){});
   }
 
   function renderResumeList(){
@@ -1740,7 +1764,7 @@
   }
   function handleFile(file){ //v3.0 - a loaded CSV becomes (or finds) a bank
     var startErr = el("startError"); startErr.classList.add("hidden");
-    readFile(file).then(function(text){ return findOrCreateBank(text, file.name); }).then(function(bank){
+    readFile(file).then(function(text){ return findOrCreateBank(text, file.name, "", true); }).then(function(bank){ //v3.1.3 - reshow
       pendingBank = bank;
       setFileStatus(true, file.name, bank.questionCount);
       el("startQuizBtn").disabled = false;
@@ -2018,15 +2042,19 @@
       if (!cats[q.category]) cats[q.category] = { total: 0, correct: 0 };
       if (revealExcluded(i)){ //v3.0
         revealedOut++;
-        missed.push({ index: i, id: q.id, category: q.category, question: q.text, your: null, correct: optionText(q, q.correct), revealed: true });
+        missed.push({ index: i, id: q.id, category: q.category, question: q.text, your: null, correct: optionText(q, q.correct), revealed: true, struck: struckOptions(q) }); //v3.1.3 - struck
         return;
       }
       scored++;
       if (ok) correctCount++;
       cats[q.category].total++; if (ok) cats[q.category].correct++;
-      if (!ok) missed.push({ index: i, id: q.id, category: q.category, question: q.text, your: sel === null ? null : optionText(q, sel), correct: optionText(q, q.correct), revealed: !!revealed[i] });
+      if (!ok) missed.push({ index: i, id: q.id, category: q.category, question: q.text, your: sel === null ? null : optionText(q, sel), correct: optionText(q, q.correct), revealed: !!revealed[i], struck: struckOptions(q) }); //v3.1.3 - struck
     });
     return { correctCount: correctCount, total: scored, all: questions.length, revealedOut: revealedOut, cats: cats, missed: missed };
+  }
+  // v3.1.3 - the options struck out on a question, in the order shown, for the .txt report
+  function struckOptions(q){
+    return (q.display || q.options).filter(function(o){ return isStruck(q, o.n); }).map(function(o){ return { text: o.text, correct: o.n === q.correct }; });
   }
   // Summary kept on the attempt for the Review list and category trends.
   function summarize(res){ //v3.0
@@ -2239,6 +2267,12 @@
       L.push("Q: " + m.question);
       L.push("Selected (your answer): " + (m.your === null ? (m.revealed ? "(not answered; answer revealed)" : "(not answered)") : m.your + (m.revealed ? " (then revealed)" : ""))); //v3.0
       L.push("Correct answer: " + m.correct);
+      // v3.1.3 - what was ruled out, so a tutor can skip those options and catch the correct answer being struck
+      if (!m.struck.length) L.push("Struck out (ruled out): none");
+      else {
+        L.push("Struck out (ruled out):");
+        m.struck.forEach(function(s){ L.push("  - " + s.text + (s.correct ? "  <- the correct answer" : "")); });
+      }
     });
     L.push("");
     return L.join("\n");
@@ -2383,7 +2417,7 @@
       try { v2 = decodeSaveCode(text); } catch (e){}
       if (v2) return importV2(v2, text);
       if (ext === "txt") throw new Error("That .txt file doesn't contain a QuizQrusher resume code.");
-      return findOrCreateBank(text, file.name).then(function(bank){
+      return findOrCreateBank(text, file.name, "", true).then(function(bank){ //v3.1.3 - reshow
         importDone("Question bank “" + bank.name + "” is ready (" + plural(bank.questionCount, "question") + ").", bank, null);
       });
     }).catch(importError);

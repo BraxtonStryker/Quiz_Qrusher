@@ -229,7 +229,7 @@ One self-contained JSON file per attempt; the CSV is embedded so no separate fil
   - Export backup
   - Done 2026-10-14 in `index.html`. The Prompt Builder, Help, Settings and Feedback tabs are placeholders until their phases. Implementation notes:
     - **Storage:** IndexedDB database `quizQrusher:app` with stores `banks` and `attempts` (keyPath `id`) and `kv` (reserved for the Phase 5 folder handle). If IndexedDB fails or doesn't answer within 5 s, it falls back to localStorage keys `quizQrusher:db:<store>:<id>`, then to memory. Each fallback shows a banner on Home.
-    - **Banks** are deduplicated by `csvHash`: loading the same CSV again reuses the bank. Deleting a bank deletes its attempts.
+    - **Banks** are deduplicated by `csvHash`: loading the same CSV again reuses the bank. Deleting a bank deletes its attempts. **Changed in v3.1.3 (user feedback):** deleting a bank that has quizzes only sets `bank.hidden`, which takes it off Start new quiz while its quizzes stay in Resume and Review. Loading the CSV on Start or as a CSV import un-hides it (quiz imports don't), and a hidden bank is deleted with its last quiz. A bank with no quizzes is deleted outright.
     - **Attempts** are stored with a `bankId`. The export drops it (the bank travels inside the file), so the exported JSON matches the §2 format exactly.
     - `attempt.results = { submittedAt, correct, total, scored, revealed, byCategory: {name: {correct, total}} }`. `scored`/`revealed` are ready for Tutor mode (Phase 3). `elapsedMs` stays 0 until the timer exists.
     - **Import:**

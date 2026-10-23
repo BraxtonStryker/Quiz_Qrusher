@@ -753,7 +753,7 @@ window.qqReadSettings = function(){
   // (the parser has built everything above; nothing has changed the DOM except the theme attributes on <html>, reset here).
   var SNAPSHOT = ("<!DOCTYPE html>\n" + document.documentElement.outerHTML).replace(/<html[^>]*>/, '<html lang="en">');
 
-  var APP_VERSION = "3.1.2"; //v3.1.2
+  var APP_VERSION = "3.1.3"; //v3.1.3
   var NS = "quizQrusher:", LNS = NS + "lite:";      // Lite keys never collide with the full app's
   var LITE_FILE = "quiz_qrusher_v3.0_lite.html";
   var FULL_URL = "https://braxtonstryker.github.io/Quiz_Qrusher/";
@@ -1565,15 +1565,19 @@ window.qqReadSettings = function(){
       if (!cats[q.category]) cats[q.category] = { total: 0, correct: 0 };
       if (revealExcluded(i)){
         revealedOut++;
-        missed.push({ index: i, id: q.id, category: q.category, question: q.text, your: null, correct: optionText(q, q.correct), revealed: true });
+        missed.push({ index: i, id: q.id, category: q.category, question: q.text, your: null, correct: optionText(q, q.correct), revealed: true, struck: struckOptions(q) }); //v3.1.3 - struck
         return;
       }
       scored++;
       if (ok) correctCount++;
       cats[q.category].total++; if (ok) cats[q.category].correct++;
-      if (!ok) missed.push({ index: i, id: q.id, category: q.category, question: q.text, your: sel === null ? null : optionText(q, sel), correct: optionText(q, q.correct), revealed: !!revealed[i] });
+      if (!ok) missed.push({ index: i, id: q.id, category: q.category, question: q.text, your: sel === null ? null : optionText(q, sel), correct: optionText(q, q.correct), revealed: !!revealed[i], struck: struckOptions(q) }); //v3.1.3 - struck
     });
     return { correctCount: correctCount, total: scored, all: questions.length, revealedOut: revealedOut, cats: cats, missed: missed };
+  }
+  // v3.1.3 - the options struck out on a question, in the order shown, for the .txt report
+  function struckOptions(q){
+    return (q.display || q.options).filter(function(o){ return isStruck(q, o.n); }).map(function(o){ return { text: o.text, correct: o.n === q.correct }; });
   }
   function summarize(res){
     var by = {};
@@ -1659,6 +1663,8 @@ window.qqReadSettings = function(){
       L.push(""); L.push("[" + (i + 1) + "] Category: " + m.category); L.push("Q: " + m.question);
       L.push("Selected (your answer): " + (m.your === null ? (m.revealed ? "(not answered; answer revealed)" : "(not answered)") : m.your + (m.revealed ? " (then revealed)" : "")));
       L.push("Correct answer: " + m.correct);
+      if (!m.struck.length) L.push("Struck out (ruled out): none"); //v3.1.3 - what was ruled out, so a tutor can skip those options and catch the correct answer being struck
+      else { L.push("Struck out (ruled out):"); m.struck.forEach(function(s){ L.push("  - " + s.text + (s.correct ? "  <- the correct answer" : "")); }); }
     });
     L.push("");
     return L.join("\n");
