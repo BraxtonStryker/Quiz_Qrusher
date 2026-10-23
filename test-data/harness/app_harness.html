@@ -143,6 +143,8 @@ document.getElementById("f").src = new URLSearchParams(location.search).get("src
     check("report downloads", names[0] === "qus_input_25_report.txt" && names[1] === "qus_input_25_report_missed.csv" && /^followup_request_\d{8}\.md$/.test(names[2]), names.join(","));
     const rep = await (await fetch(captured[captured.length - 3].href)).text();
     check("report source", rep.indexOf("Source: qus_input_25.csv") > 0);
+    const fuMd = await (await fetch(captured[captured.length - 1].href)).text();
+    check("v313 follow-up retests struck correct answers", fuMd.indexOf("and retest any correct answer they struck out as wrong.") > 0);
     check("v313 report lists struck options", rep.indexOf("\nStruck out (ruled out):\n  - ") > 0 && rep.indexOf("\nStruck out (ruled out): none") > 0); // Q4 has one option struck
 
     // ---- Review

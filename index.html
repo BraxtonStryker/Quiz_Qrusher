@@ -878,7 +878,7 @@
       </ul>
 
       <h2 id="help-followup">Follow-up requests</h2>
-      <p>The <strong>Follow-up request (.md)</strong> on Results is a ready-to-send prompt listing your weak categories, the concepts you missed and the wrong answers you chose. Pick a difficulty and question count (defaults are in Settings), download it, and give it to Claude with your <code>slide_data.md</code> and <code>question_styling.md</code>. You can also download the <strong>Quiz Report (.txt)</strong> (it lists the options you struck out on each missed question, so a tutor or an AI can skip what you'd ruled out and catch a correct answer you struck) and <strong>Missed Questions (.csv)</strong>.</p> <!--v3.1.3-->
+      <p>The <strong>Follow-up request (.md)</strong> on Results is a ready-to-send prompt listing your weak categories, the concepts you missed, the wrong answers you chose, and any correct answer you struck out. Pick a difficulty and question count (defaults are in Settings), download it, and give it to Claude with your <code>slide_data.md</code> and <code>question_styling.md</code>. You can also download the <strong>Quiz Report (.txt)</strong> (it lists the options you struck out on each missed question, so a tutor or an AI can skip what you'd ruled out and catch a correct answer you struck) and <strong>Missed Questions (.csv)</strong>.</p> <!--v3.1.3-->
 
       <h2 id="help-lite">Lite version</h2>
       <p>Lite is a single file that works offline, keeps one quiz at a time, and carries its settings inside itself. <button class="linkbtn" type="button" id="helpOpenLiteBtn">Open Lite</button> or use <strong>Download for offline use</strong> on Home, which bakes your current settings into the copy. Keep it in its own folder (for example "QuizQrusher Lite"). In Chrome or Edge, link that folder in Lite's Settings: saves go into a <code>saves</code> folder beside it, and <strong>Apply</strong> updates the Lite file directly. Otherwise Apply downloads a new copy to put in place of the old one.</p>
@@ -897,7 +897,7 @@
       <h2 id="help-whatsnew">What's new</h2>
       <dl class="versions">
         <dt>v3.1.3 &middot; October 2026</dt>
-        <dd>The Quiz Report (.txt) lists the options you struck out on each missed question, and flags it when one of them was the correct answer. Deleting a question bank on Start new quiz no longer deletes its quizzes: they stay in Resume and Review.</dd>
+        <dd>The Quiz Report (.txt) lists the options you struck out on each missed question, and flags it when one of them was the correct answer. The Follow-up request (.md) lists a struck-out correct answer as a misconception to retest. Deleting a question bank on Start new quiz no longer deletes its quizzes: they stay in Resume and Review.</dd>
         <dt>v3.1.2 &middot; October 2026</dt>
         <dd>RunDown is blue in the study apps menu.</dd>
         <dt>v3.1.1 &middot; October 2026</dt>
@@ -2312,7 +2312,7 @@
     "### [INSTRUCTIONS FOR FOLLOW-UP QUESTION GENERATION]",
     "- Generate new 6-option multiple-choice questions targeting *only* the focal areas above.",
     "- Do NOT reuse the vignettes or stems from the previous quiz; present novel clinical or experimental scenarios built on the same underlying facts in `slide_data.md`.",
-    "- Craft distractors specifically around the misconceptions listed above — especially the wrong options the student actually selected.",
+    "- Craft distractors specifically around the misconceptions listed above — especially the wrong options the student actually selected, and retest any correct answer they struck out as wrong.", //v3.1.3
     "- Follow the board-style formatting rules in `question_styling.md`.",
     "- Output the new batch strictly as CSV, with this header row and nothing else before or after:",
     "",
@@ -2335,9 +2335,11 @@
     var focusStr = focus.length ? focus.slice(0, 5).map(function(c){ return c.name; }).join(", ") : "None — full marks on this attempt.";
     var concepts = res.missed.length ? "\n" + res.missed.map(function(m){ return "  - (" + m.category + ") " + m.question; }).join("\n") : " None — every question correct.";
     var misc = res.missed.length ? "\n" + res.missed.map(function(m){
-        return m.your === null
+        var struckRight = m.struck.some(function(s){ return s.correct; }); //v3.1.3 - ruling out the correct answer is a misconception too
+        return (m.your === null
           ? "  - " + m.category + ": " + (m.revealed ? "revealed the answer without attempting" : "left unanswered") + "; correct answer is \"" + m.correct + "\"." //v3.0
-          : "  - " + m.category + ": selected \"" + m.your + "\" instead of the correct \"" + m.correct + "\".";
+          : "  - " + m.category + ": selected \"" + m.your + "\" instead of the correct \"" + m.correct + "\".") +
+          (struckRight ? " Struck out the correct answer, ruling it out as wrong." : "");
       }).join("\n") : " None.";
     var diff = el("fuDifficulty").value;
     var qty = String(parseInt(el("fuQuantity").value, 10) || Math.max(5, Math.min(10, res.missed.length || 5)));
